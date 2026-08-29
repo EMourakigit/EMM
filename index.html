@@ -1,0 +1,3228 @@
+<title>Momentum</title>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="color-scheme" content="light dark" />
+<style>
+  :root {
+    --bg: #f7f6f3;
+    --surface: #ffffff;
+    --border: #e2e0da;
+    --text: #1e1c19;
+    --text-muted: #6b6660;
+    --target: #2f6f4f;
+    --target-soft: #eaf3ee;
+    --floor: #3a7ca5;
+    --floor-soft: #eaf2f7;
+    --skip: #8a8378;
+    --skip-soft: #f0eee9;
+    --flex-bg: #fff8e6;
+    --flex-border: #e8cd7a;
+    --danger: #b5544a;
+    --miss: #b5544a;
+    --miss-soft: #f7e9e7;
+    --no-data: #ece9e2;
+    --other-accent: #c98a2e;
+    --radius: 10px;
+  }
+
+  /* Dark tokens apply either because the OS/browser prefers dark and the
+     user hasn't explicitly overridden it (data-theme="light" blocks this),
+     or because the user explicitly picked dark (the second rule, which
+     applies regardless of system preference). Same values in both places
+     on purpose — see the theme toggle in the sidebar footer. */
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #171613;
+      --surface: #211f1b;
+      --border: #38352e;
+      --text: #ece9e2;
+      --text-muted: #a29b8f;
+      --target: #4fa87b;
+      --target-soft: #1c2e24;
+      --floor: #5fa4d4;
+      --floor-soft: #1c2933;
+      --skip: #a39c8f;
+      --skip-soft: #2a2822;
+      --flex-bg: #2e2712;
+      --flex-border: #6b551f;
+      --danger: #d97a70;
+      --miss: #d97a70;
+      --miss-soft: #33231f;
+      --no-data: #2a2822;
+      --other-accent: #d9a24a;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #171613;
+    --surface: #211f1b;
+    --border: #38352e;
+    --text: #ece9e2;
+    --text-muted: #a29b8f;
+    --target: #4fa87b;
+    --target-soft: #1c2e24;
+    --floor: #5fa4d4;
+    --floor-soft: #1c2933;
+    --skip: #a39c8f;
+    --skip-soft: #2a2822;
+    --flex-bg: #2e2712;
+    --flex-border: #6b551f;
+    --danger: #d97a70;
+    --miss: #d97a70;
+    --miss-soft: #33231f;
+    --no-data: #2a2822;
+    --other-accent: #d9a24a;
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+
+  #app { height: 100%; }
+
+  /* Top app bar — shown only on phones, where the sidebar turns into a
+     bottom nav bar and the app would otherwise have no visible brand or
+     theme control. Logo centered, theme toggle pinned right. */
+  .topbar { display: none; }
+
+  /* --- Dashboard shell: persistent sidebar + scrolling main area --- */
+
+  .shell { display: flex; height: 100%; width: 100%; }
+
+  .sidebar {
+    flex-shrink: 0;
+    width: 208px;
+    display: flex;
+    flex-direction: column;
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    overflow: hidden;
+    transition: width 0.15s ease;
+  }
+
+  .sidebar.collapsed { width: 60px; }
+
+  .sidebar-header {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 14px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .brand-lockup { display: flex; align-items: center; gap: 9px; min-width: 0; }
+  .sidebar.collapsed .brand-lockup { display: none; }
+
+  .brand-mark {
+    flex-shrink: 0;
+    width: 26px;
+    height: 26px;
+    border-radius: 7px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(145deg, var(--target), color-mix(in srgb, var(--target) 74%, #000));
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.18);
+  }
+  .brand-mark svg { display: block; }
+
+  .brand { font-weight: 800; font-size: 16px; letter-spacing: -0.1px; white-space: nowrap; overflow: hidden; }
+
+  .sidebar-toggle {
+    flex-shrink: 0;
+    border: none;
+    background: transparent;
+    color: var(--text-muted);
+    font-size: 16px;
+    line-height: 1;
+    cursor: pointer;
+    padding: 6px;
+    border-radius: 6px;
+  }
+  .sidebar-toggle:hover { background: var(--bg); color: var(--text); }
+
+  .nav-list { flex: 1; padding: 8px; display: flex; flex-direction: column; gap: 2px; overflow-y: auto; }
+
+  .sidebar-footer { flex-shrink: 0; padding: 8px; border-top: 1px solid var(--border); }
+  .theme-toggle { width: 100%; }
+
+  .nav-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    border: none;
+    background: transparent;
+    color: var(--text-muted);
+    padding: 9px 10px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    font-family: inherit;
+    text-align: left;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .nav-item:hover { background: var(--bg); color: var(--text); }
+  .nav-item.active { background: var(--target-soft); color: var(--target); }
+
+  .nav-icon { flex-shrink: 0; width: 18px; display: flex; align-items: center; justify-content: center; }
+  .nav-icon-svg { display: block; }
+  .sidebar.collapsed .nav-item { justify-content: center; padding: 10px; }
+  .sidebar.collapsed .nav-label { display: none; }
+
+  .main { flex: 1; min-width: 0; height: 100%; overflow-y: auto; padding: 24px 32px 64px; }
+
+  /* --- Tablet: tighten the main padding, sidebar stays but narrower --- */
+  @media (max-width: 900px) {
+    .main { padding: 20px 20px 56px; }
+    .sidebar { width: 184px; }
+  }
+
+  /* --- Phone: top app bar + sidebar becomes a fixed bottom nav bar --- */
+  @media (max-width: 600px) {
+    #app { display: flex; flex-direction: column; }
+
+    .topbar {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      align-items: center;
+      flex-shrink: 0;
+      position: sticky;
+      top: 0;
+      z-index: 40;
+      padding: 9px 12px;
+      padding-top: calc(9px + env(safe-area-inset-top, 0px));
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+    }
+    .topbar .brand-lockup { justify-self: center; }
+    .topbar-right { justify-self: end; }
+    .topbar-theme {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      border: 1px solid var(--border);
+      background: var(--bg);
+      color: var(--text-muted);
+      font-family: inherit;
+      font-size: 12px;
+      font-weight: 600;
+      padding: 6px 10px;
+      border-radius: 999px;
+      cursor: pointer;
+    }
+    .topbar-theme:hover { color: var(--text); }
+
+    .shell { flex: 1; min-height: 0; flex-direction: column; }
+
+    .sidebar,
+    .sidebar.collapsed {
+      position: fixed;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      z-index: 50;
+      width: 100%;
+      flex-direction: row;
+      align-items: stretch;
+      border-right: none;
+      border-top: 1px solid var(--border);
+      padding-bottom: env(safe-area-inset-bottom, 0px);
+      transition: none;
+      box-shadow: 0 -2px 12px rgba(0, 0, 0, 0.08);
+    }
+
+    .sidebar-header { display: none; }
+    .sidebar-footer { display: none; }   /* theme toggle now lives in .topbar */
+
+    .nav-list {
+      flex: 1;
+      flex-direction: row;
+      justify-content: space-around;
+      gap: 2px;
+      padding: 4px 2px;
+      overflow: visible;
+    }
+
+    .nav-item,
+    .sidebar.collapsed .nav-item {
+      flex: 1;
+      flex-direction: column;
+      gap: 3px;
+      padding: 7px 4px;
+      font-size: 10px;
+      font-weight: 600;
+      text-align: center;
+      justify-content: center;
+    }
+    .nav-item.active { background: transparent; color: var(--target); }
+
+    .nav-label,
+    .sidebar.collapsed .nav-label { display: block; }
+
+    .main {
+      height: auto;
+      padding: 16px 14px calc(74px + env(safe-area-inset-bottom, 0px));
+    }
+
+    .modal-overlay { padding: 12px; }
+    h1 { font-size: 18px; }
+  }
+
+  h1 { font-size: 20px; margin: 0 0 4px; }
+
+  h2 {
+    font-size: 15px;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    color: var(--text-muted);
+    margin: 24px 0 8px;
+  }
+  h2:first-of-type { margin-top: 0; }
+
+  .hint { color: var(--text-muted); font-size: 14px; line-height: 1.4; margin: 4px 0 12px; }
+  .hint.small { font-size: 12px; margin: 0 0 4px; }
+
+  button {
+    font-family: inherit;
+    transition: transform 0.09s ease, background-color 0.14s ease, border-color 0.14s ease,
+                color 0.14s ease, box-shadow 0.14s ease, opacity 0.14s ease, filter 0.1s ease;
+  }
+  /* subtle press feedback on every button in the app (disabled buttons
+     never match :active, so no extra guard needed) */
+  button:active { transform: scale(0.96); }
+
+  /* --- motion: keyframes shared by popups/menus (see .modal-*, .tt-edit-form) --- */
+  @keyframes overlayIn { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes dialogIn {
+    from { opacity: 0; transform: translateY(8px) scale(0.985); }
+    to   { opacity: 1; transform: none; }
+  }
+  @keyframes stripIn {
+    from { opacity: 0; transform: translateY(-4px); }
+    to   { opacity: 1; transform: none; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, ::before, ::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+
+  input[type="text"], input[type="time"], input[type="date"], textarea {
+    font-size: 15px;
+    padding: 9px 11px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--bg);
+    color: var(--text);
+    font-family: inherit;
+  }
+
+  /* Custom chevron replaces the OS-native arrow so padding/sizing is
+     consistent everywhere a <select> appears, instead of depending on
+     each browser's own (often cramped) built-in rendering. */
+  select {
+    font-size: 15px;
+    padding: 9px 34px 9px 12px;
+    margin: 0;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background-color: var(--bg);
+    color: var(--text);
+    font-family: inherit;
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%238a8378' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    background-size: 14px;
+    cursor: pointer;
+  }
+
+  input[type="text"]:focus, input[type="time"]:focus, input[type="date"]:focus, select:focus, textarea:focus {
+    outline: 2px solid var(--floor);
+    outline-offset: 1px;
+  }
+
+  .secondary-btn {
+    display: inline-block;
+    padding: 8px 14px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--surface);
+    color: var(--text);
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .secondary-btn:hover { border-color: var(--text-muted); }
+
+  .cal-clear-btn { margin-top: 16px; color: var(--miss); }
+  .cal-clear-btn:hover { border-color: var(--miss); }
+
+  .icon-btn {
+    border: none;
+    background: transparent;
+    color: var(--text-muted);
+    font-size: 13px;
+    cursor: pointer;
+    padding: 4px 6px;
+    border-radius: 6px;
+  }
+  .icon-btn:hover { background: var(--bg); color: var(--text); }
+
+  /* --- day-of-week picker (a task's scheduled days) --- */
+
+  .day-row { display: flex; gap: 6px; flex-wrap: wrap; max-width: 480px; }
+  .day-btn {
+    flex: 1;
+    min-width: 40px;
+    padding: 8px 0;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--surface);
+    color: var(--text);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .day-btn.active { background: var(--flex-bg); border-color: var(--flex-border); color: var(--text); }
+
+  /* --- color swatches --- */
+
+  .swatch-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+  .swatch {
+    width: 22px;
+    height: 22px;
+    border-radius: 999px;
+    border: 2px solid transparent;
+    cursor: pointer;
+    padding: 0;
+  }
+  .swatch.active { border-color: var(--text); }
+  .swatch-custom {
+    width: 26px;
+    height: 26px;
+    padding: 0;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background: none;
+    cursor: pointer;
+  }
+
+  /* --- Input Tracker --- */
+
+  .tracker-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 20px;
+    align-items: center;
+    margin-bottom: 16px;
+  }
+
+  .week-nav {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 6px 10px;
+  }
+  .week-nav-btn {
+    border: none;
+    background: transparent;
+    color: var(--text);
+    font-size: 16px;
+    font-weight: 700;
+    cursor: pointer;
+    padding: 2px 8px;
+    border-radius: 6px;
+  }
+  .week-nav-btn:disabled { color: var(--border); cursor: default; }
+  .week-nav-label { font-size: 13px; font-weight: 600; white-space: nowrap; }
+
+  /* No outer border — a hard 1px edge stood out against the darker
+     category-gap band and read as a line running between blocks. A soft
+     shadow defines the table edge instead and makes it read as floating. */
+  .tracker-wrap {
+    overflow-x: auto;
+    border-radius: var(--radius);
+    background: var(--surface);
+    box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.05), 0 3px 10px rgba(0, 0, 0, 0.10), 0 20px 44px rgba(0, 0, 0, 0.16);
+  }
+
+  table.tracker-table { border-collapse: collapse; width: 100%; min-width: 720px; font-size: 13px; }
+
+  .tracker-table th, .tracker-table td {
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--border);
+    border-left: 1px solid var(--border);   /* thin rule between each day column */
+    text-align: center;
+  }
+  .tracker-table th:first-child, .tracker-table td:first-child { border-left: none; }
+  .tracker-table thead th { border-bottom: 2px solid var(--border); }
+
+  .tt-corner { min-width: 200px; text-align: left !important; background: var(--surface); border-right: 1px solid var(--border); }
+
+  .tt-day-head { min-width: 46px; font-weight: 700; color: var(--text); }
+  .tt-day-head .tt-day-date { display: block; font-weight: 400; font-size: 11px; color: var(--text-muted); }
+  .tt-day-head.tt-today { color: var(--target); }
+  .tt-pct-head { min-width: 56px; color: var(--text-muted); white-space: nowrap; }
+
+  /* full-width rows shouldn't pick up the per-column rule */
+  .tt-category-row td, .tt-add-row td, .tt-edit-row td, .tt-cat-gap td { border-left: none !important; }
+
+  /* blank band of page-colour separating one category block from the next
+     — no divider lines top or bottom, just open space */
+  .tt-cat-gap td { padding: 0; height: 30px; background: var(--bg); border-bottom: none; border-top: none; }
+
+  .tt-category-row td {
+    text-align: left;
+    background: color-mix(in srgb, var(--cat-color, var(--text-muted)) 18%, var(--surface));
+    font-weight: 700;
+    padding: 13px 12px;
+    border-top: none;
+    border-bottom: 1px solid var(--border);
+  }
+  .tt-cat-name { color: var(--cat-color, var(--text)); font-size: 14px; letter-spacing: 0.2px; }
+  .tt-cat-count { font-weight: 400; color: var(--text-muted); font-size: 12px; margin-left: 6px; }
+
+  .tt-edit-row td { text-align: left; background: var(--bg); padding: 10px; }
+  .tt-edit-form { display: flex; flex-direction: column; gap: 8px; max-width: 520px; animation: stripIn 0.16s ease both; }
+  .tt-edit-form-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .tt-edit-form input[type="text"] { flex: 1; min-width: 140px; }
+
+  .tt-task-row:hover td { background: var(--bg); }
+  .tt-task-name {
+    position: sticky;
+    left: 0;
+    text-align: left !important;
+    background: var(--surface);
+    font-weight: 600;
+    border-left: 3px solid var(--cat-color, transparent);
+    border-right: 1px solid var(--border);
+  }
+  .tt-task-row:hover .tt-task-name { background: var(--bg); }
+  .tt-nn-mark { margin-right: 3px; }
+
+  .tt-cell { cursor: pointer; user-select: none; font-size: 15px; transition: background-color 0.14s ease, color 0.14s ease; }
+  .tt-cell:not(.status-na):not(.future):active { box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--text) 22%, transparent); }
+  .tt-cell.status-done { background: var(--target-soft); color: var(--target); }
+  .tt-cell.status-not_done { background: var(--miss-soft); color: var(--miss); }
+  .tt-cell.status-todo { background: transparent; color: var(--text-muted); }
+  .tt-cell.status-na { background: var(--no-data); color: var(--text-muted); cursor: default; opacity: 0.6; }
+  .tt-cell.future { cursor: default; opacity: 0.5; }
+
+  .tt-pct-cell { color: var(--text-muted); font-variant-numeric: tabular-nums; }
+
+  .tt-add-row td { text-align: left; padding: 8px 12px; border-bottom: none; }
+  .tt-add-row button { border: none; background: transparent; color: var(--text-muted); font-size: 13px; font-weight: 600; cursor: pointer; padding: 4px 0; }
+  .tt-add-row button:hover { color: var(--text); }
+
+  .add-category-btn { margin-top: 14px; }
+
+  /* --- Dashboard --- */
+
+  .today-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px;
+    margin-bottom: 20px;
+  }
+  .today-card-title { font-weight: 700; font-size: 15px; margin-bottom: 12px; }
+  .today-groups { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(230px, 100%), 1fr)); gap: 14px 18px; align-items: start; }
+  .today-group-title { display: flex; align-items: center; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); margin-bottom: 8px; }
+  .today-group-count { margin-left: auto; padding-left: 8px; font-variant-numeric: tabular-nums; color: var(--text-muted); }
+
+  /* the non-negotiables read as a boxed commitment, not just another list */
+  .today-group.nonneg {
+    background: color-mix(in srgb, var(--target) 7%, var(--surface));
+    border: 1px solid color-mix(in srgb, var(--target) 22%, var(--border));
+    border-left: 3px solid var(--target);
+    border-radius: var(--radius);
+    padding: 11px 13px;
+  }
+  .today-group.nonneg .today-group-title { color: var(--target); }
+  .today-group.nonneg .today-group-title::before { content: "\2605"; margin-right: 6px; font-size: 12px; line-height: 1; }
+  .today-group.nonneg .today-group-count { color: color-mix(in srgb, var(--target) 70%, var(--text-muted)); font-weight: 800; }
+  .today-group.nonneg .today-task-name { font-weight: 600; }
+  .today-group.nonneg .today-task-item:not(.done) .today-task-dot {
+    border-color: color-mix(in srgb, var(--target) 50%, var(--border));
+  }
+  .today-group.nonneg .dash-group-pct { color: var(--target); }
+
+  /* "Other tasks" gets its own boxed card too — a light-orange counterpart
+     to the non-negotiables, one step down in emphasis (no ★, thinner
+     accent) so the hierarchy still reads. */
+  .today-group.other {
+    background: color-mix(in srgb, var(--other-accent) 8%, var(--surface));
+    border: 1px solid color-mix(in srgb, var(--other-accent) 24%, var(--border));
+    border-left: 3px solid var(--other-accent);
+    border-radius: var(--radius);
+    padding: 11px 13px;
+  }
+  .today-group.other .today-group-title { color: var(--other-accent); }
+  .today-group.other .today-group-count { color: color-mix(in srgb, var(--other-accent) 70%, var(--text-muted)); font-weight: 800; }
+  .today-group.other .today-task-item:not(.done) .today-task-dot {
+    border-color: color-mix(in srgb, var(--other-accent) 50%, var(--border));
+  }
+  .today-group.other .dash-group-pct { color: var(--other-accent); }
+
+  .today-task-list { display: flex; flex-direction: column; gap: 2px; }
+  .today-task-item {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    width: 100%;
+    text-align: left;
+    border: none;
+    background: transparent;
+    padding: 6px 8px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 14px;
+    color: var(--text);
+    font-family: inherit;
+  }
+  .today-task-item:hover { background: var(--bg); }
+  .today-task-item:focus-visible { outline: 2px solid var(--floor); outline-offset: 1px; }
+  .today-task-dot {
+    flex-shrink: 0;
+    width: 16px;
+    height: 16px;
+    border-radius: 5px;
+    border: 2px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    color: #fff;
+  }
+  /* a completed task is struck through and dimmed ("scratched off"); it
+     stays in the list and re-brightens on hover so it's clearly still a
+     tap target to undo. The done state is stored per calendar day, so the
+     list starts fresh again the next day on its own. */
+  .today-task-item.done { opacity: 0.6; }
+  .today-task-item.done:hover { opacity: 1; }
+  .today-task-item.done .today-task-dot { background: var(--target); border-color: var(--target); }
+  .today-task-item.done .today-task-name {
+    text-decoration: line-through;
+    text-decoration-thickness: 2px;
+    color: var(--text-muted);
+  }
+  .today-group.other .today-task-item.done .today-task-dot {
+    background: var(--other-accent);
+    border-color: var(--other-accent);
+  }
+  /* per-task list under each group in a non-Today filter range */
+  .dash-range-list { display: flex; flex-direction: column; gap: 1px; margin-top: 8px; }
+  .dash-range-task { display: flex; justify-content: space-between; gap: 8px; font-size: 13px; padding: 4px 8px; }
+  .dash-range-task-val { color: var(--text-muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+  /* time filter — one icon button that opens a small menu, options hidden until then */
+  .dash-filter { display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: center; margin-bottom: 14px; }
+  .dash-filter-wrap { position: relative; }
+  .dash-filter-trigger {
+    display: flex; align-items: center; gap: 8px; min-width: 168px;
+    border: 1px solid var(--border); background: var(--surface); color: var(--text);
+    border-radius: 8px; padding: 8px 12px; font-size: 14px; font-weight: 600; cursor: pointer;
+  }
+  .dash-filter-trigger:hover { border-color: var(--text-muted); }
+  .dash-filter-trigger svg { display: block; color: var(--text-muted); }
+  .dash-filter-cur { flex: 1; text-align: left; }
+  .dash-filter-chev { display: inline-flex; transition: transform 0.15s ease; }
+  .dash-filter-wrap.open .dash-filter-chev { transform: rotate(180deg); }
+  .dash-menu-backdrop { position: fixed; inset: 0; z-index: 30; }
+  .dash-menu {
+    position: absolute; top: calc(100% + 4px); left: 0; z-index: 31;
+    min-width: 168px; display: flex; flex-direction: column;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+    padding: 4px; box-shadow: 0 10px 28px rgba(0, 0, 0, 0.18);
+    animation: dialogIn 0.14s cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+  .dash-menu-item {
+    text-align: left; border: none; background: transparent; color: var(--text);
+    font-size: 14px; font-weight: 500; padding: 8px 10px; border-radius: 6px; cursor: pointer;
+    font-family: inherit;
+  }
+  .dash-menu-item:hover { background: var(--bg); }
+  .dash-menu-item.active { background: var(--target-soft); color: var(--target); font-weight: 700; }
+  .dash-custom { display: flex; align-items: center; gap: 8px; }
+  .dash-custom-sep { color: var(--text-muted); }
+
+  /* headline strip (replaces the old fixed week/overall tiles) */
+  .dash-summary {
+    display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px;
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 12px 16px; margin-bottom: 20px;
+  }
+  .dash-summary-range { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); }
+  .dash-summary-main { font-size: 20px; font-weight: 800; }
+  .dash-summary-sub { font-size: 13px; color: var(--text-muted); }
+
+  /* range stats in the non-negotiable / other card */
+  .dash-group-pct { font-size: 24px; font-weight: 800; }
+  .dash-group-sub { font-size: 12px; color: var(--text-muted); margin: 2px 0 8px; }
+
+  /* two chart cards, side by side then stacked */
+  .dash-charts { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(300px, 100%), 1fr)); gap: 14px; margin-bottom: 20px; }
+  .dash-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; }
+  .dash-card-title { font-weight: 700; font-size: 14px; margin-bottom: 12px; }
+
+  .dash-pie-body { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; }
+  .donut { flex: 0 0 150px; width: 150px; height: 150px; }
+  .donut-center { font-size: 22px; font-weight: 800; fill: var(--text); }
+  .donut-center-sub { font-size: 9px; letter-spacing: 0.5px; text-transform: uppercase; fill: var(--text-muted); }
+  .dash-legend { flex: 1; min-width: 150px; display: flex; flex-direction: column; gap: 7px; }
+  .dash-legend-row { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+  .dash-legend-sw { width: 12px; height: 12px; border-radius: 3px; flex-shrink: 0; }
+  .dash-legend-label { flex: 1; }
+  .dash-legend-pct { font-weight: 700; font-variant-numeric: tabular-nums; }
+  .dash-legend-count { color: var(--text-muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+
+  .dash-bars { display: flex; flex-direction: column; gap: 12px; }
+  .dash-bar-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; margin-bottom: 4px; }
+  .dash-bar-name { font-weight: 600; font-size: 13px; display: flex; align-items: center; gap: 7px; }
+  .dash-bar-dot { width: 9px; height: 9px; border-radius: 999px; flex-shrink: 0; }
+  .dash-bar-val { font-size: 12px; color: var(--text-muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .dash-bar-track { height: 10px; border-radius: 999px; background: var(--miss-soft); overflow: hidden; }
+  .dash-bar-done { display: block; height: 100%; background: var(--target); border-radius: 999px; transition: width 0.15s ease; }
+
+  .kpi-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(260px, 100%), 1fr)); gap: 14px; }
+  .kpi-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; border-left: 4px solid var(--cat-color, var(--border)); }
+  .kpi-card-name { font-weight: 700; font-size: 15px; display: flex; align-items: center; gap: 8px; }
+  .kpi-dot { width: 9px; height: 9px; border-radius: 999px; background: var(--cat-color, var(--text-muted)); flex-shrink: 0; }
+  .kpi-pct { font-size: 30px; font-weight: 800; margin-top: 8px; }
+  .kpi-pct-label { font-size: 12px; color: var(--text-muted); margin-top: -2px; }
+  .kpi-streak { margin-top: 10px; font-size: 13px; color: var(--text-muted); }
+  .kpi-streak strong { color: var(--text); }
+
+  /* --- Calendar --- */
+
+  .cal-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); padding: 12px; }
+  .cal-grid { display: flex; min-width: 760px; }
+  .cal-gutter { width: 46px; flex-shrink: 0; }
+  .cal-gutter-cell { height: 36px; font-size: 10px; color: var(--text-muted); text-align: right; padding-right: 6px; transform: translateY(-6px); }
+  .cal-day-col { flex: 1; min-width: 96px; border-left: 1px solid var(--border); position: relative; }
+  .cal-day-head { text-align: center; font-size: 12px; font-weight: 700; color: var(--text-muted); padding-bottom: 6px; }
+  .cal-day-head.today { color: var(--text); }
+  .cal-day-body {
+    position: relative;
+    border-top: 1px solid var(--border);
+    background-image: repeating-linear-gradient(to bottom, transparent, transparent 35px, var(--border) 35px, var(--border) 36px);
+  }
+  /* Tap a block to open its edit popup (renderBlockEditModal). Still no
+     drag/draw/resize on the grid — a plain click is the only gesture. */
+  .cal-block {
+    position: absolute;
+    left: 2px;
+    right: 2px;
+    display: block;
+    border: none;
+    text-align: left;
+    font-family: inherit;
+    color: var(--text);
+    border-radius: 6px;
+    background: color-mix(in srgb, var(--blk-color, var(--floor)) 22%, var(--surface));
+    border-left: 3px solid var(--blk-color, var(--floor));
+    padding: 3px 5px;
+    font-size: 11px;
+    overflow: hidden;
+    line-height: 1.25;
+    cursor: pointer;
+    transition: filter 0.1s ease;
+  }
+  .cal-block:hover { filter: brightness(0.96) saturate(1.15); }
+  .cal-block:active { filter: brightness(0.92); }
+  .cal-block-time { display: block; font-size: 9px; color: var(--text-muted); }
+
+  .cal-empty { margin-top: 14px; }
+
+  /* block-popup time picker: Start/End rows (hour + minute <select>) with
+     duration shortcut chips below — short lists, no scrolling megadropdown */
+  .cal-time { display: flex; flex-direction: column; gap: 8px; }
+  .cal-time-row { display: flex; align-items: center; gap: 6px; }
+  .cal-time-tag { flex-shrink: 0; width: 36px; font-size: 11px; font-weight: 600; color: var(--text-muted); }
+  .cal-time-row select { flex: 1; min-width: 0; }
+  .cal-time-colon { color: var(--text-muted); }
+  .cal-dur-row { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 2px; }
+  .cal-dur-chip {
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text-muted);
+    font-size: 12px;
+    font-weight: 600;
+    padding: 5px 10px;
+    border-radius: 999px;
+    cursor: pointer;
+  }
+  .cal-dur-chip:hover { border-color: var(--text-muted); color: var(--text); }
+  .cal-dur-chip.active { background: var(--target); border-color: var(--target); color: #fff; }
+
+  /* --- Goals: identity --- */
+
+  .identity-block {
+    display: block;
+    width: 100%;
+    max-width: 640px;
+    min-height: 80px;
+    resize: vertical;
+    font-size: 15px;
+    line-height: 1.5;
+  }
+
+  /* --- Goals: horizons --- */
+
+  /* the three horizons sit side by side as columns; they wrap, then stack
+     outright on narrow screens. A rule separates them from the identity
+     block above. */
+  .horizon-columns {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: stretch;
+    gap: 16px;
+    margin-top: 20px;
+    padding-top: 20px;
+    border-top: 1px solid var(--border);
+  }
+  .horizon-section {
+    flex: 1 1 240px;
+    min-width: 0;
+    padding: 16px;
+    overflow: hidden;
+    border-radius: var(--radius);
+    background: color-mix(in srgb, var(--hz-color, var(--border)) 6%, var(--surface));
+    border: 1px solid color-mix(in srgb, var(--hz-color, var(--border)) 24%, var(--border));
+  }
+  @media (max-width: 780px) {
+    .horizon-columns { flex-direction: column; }
+  }
+
+  /* shared page-header row: title on the left, one primary action on the right */
+  .view-header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 12px; margin-bottom: 4px; }
+  .header-add-btn {
+    flex-shrink: 0;
+    border: none;
+    border-radius: 8px;
+    background: var(--target);
+    color: #fff;
+    font-size: 14px;
+    font-weight: 700;
+    padding: 9px 16px;
+    cursor: pointer;
+  }
+  .header-add-btn:hover { background: color-mix(in srgb, var(--target) 82%, black); }
+
+  /* the horizon title sits on its own tinted strip, ruled off from the
+     cards below it */
+  .horizon-head {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    margin: -16px -16px 16px;
+    padding: 13px 16px;
+    background: color-mix(in srgb, var(--hz-color, var(--border)) 12%, transparent);
+    border-bottom: 1px solid color-mix(in srgb, var(--hz-color, var(--border)) 38%, var(--border));
+  }
+  .horizon-title {
+    font-size: 15px;
+    font-weight: 800;
+    color: var(--hz-color, var(--text));
+    text-transform: none;
+    letter-spacing: 0.2px;
+    margin: 0;
+  }
+  .horizon-sub { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.6px; color: var(--text-muted); }
+
+  .goal-grid { display: flex; flex-direction: column; gap: 12px; }
+
+  /* the whole card is a click target (opens the Edit popup) */
+  .goal-card {
+    width: 100%;
+    text-align: left;
+    font-family: inherit;
+    color: var(--text);
+    cursor: pointer;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--hz-color, var(--border));
+    border-radius: var(--radius);
+    padding: 13px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 9px;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  }
+  .goal-card:hover {
+    border-color: color-mix(in srgb, var(--hz-color, var(--text-muted)) 45%, var(--border));
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+  }
+  .goal-card:active { transform: scale(0.99); }
+  .goal-card:focus-visible { outline: 2px solid var(--hz-color, var(--floor)); outline-offset: 2px; }
+
+  .goal-card-name { font-weight: 700; font-size: 15px; line-height: 1.3; }
+
+  .goal-progress-track {
+    display: block;
+    height: 8px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--hz-color, var(--border)) 25%, var(--surface));
+    overflow: hidden;
+  }
+  .goal-progress-fill {
+    display: block;
+    height: 100%;
+    border-radius: 999px;
+    background: var(--hz-color, var(--text-muted));
+    transition: width 0.15s ease;
+  }
+  .goal-progress-meta { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text-muted); font-weight: 600; }
+  /* card indicator: is progress live-tracked or hand-entered? */
+  .goal-source { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px; color: var(--text-muted); }
+  .goal-source.auto { color: var(--hz-color, var(--target)); }
+
+  .goal-field-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.4px; color: var(--text-muted); margin: 2px 0 -2px; }
+
+  /* goal Edit popup: progress-source config (short-term link / roll-up) */
+  .goal-progress-field { display: flex; flex-direction: column; gap: 8px; }
+  .goal-src-row { display: flex; gap: 4px; flex-wrap: wrap; }
+  .tasklink-list {
+    display: flex; flex-direction: column; gap: 1px;
+    max-height: 168px; overflow-y: auto;
+    border: 1px solid var(--border); border-radius: 8px;
+    padding: 4px; background: var(--bg);
+  }
+  .tasklink-item { display: flex; align-items: center; gap: 8px; font-size: 13px; padding: 5px 6px; border-radius: 6px; cursor: pointer; }
+  .tasklink-item:hover { background: var(--surface); }
+  .modal-body input[type="checkbox"] { width: auto; flex-shrink: 0; }
+  .goal-readout { background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; }
+  .goal-linked-readout { font-size: 14px; font-weight: 700; color: var(--text); }
+  .goal-linked-sub { font-size: 11px; color: var(--text-muted); margin-top: 1px; line-height: 1.4; }
+  .goal-rollup-list { display: flex; flex-direction: column; gap: 2px; margin-top: 4px; font-size: 12px; color: var(--text-muted); }
+
+  .goal-deadline-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .goal-overdue {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--miss);
+    background: var(--miss-soft);
+    padding: 3px 8px;
+    border-radius: 999px;
+  }
+
+  .mode-btn {
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text-muted);
+    font-size: 12px;
+    font-weight: 600;
+    padding: 4px 10px;
+    border-radius: 999px;
+    cursor: pointer;
+  }
+  .mode-btn.active { background: var(--target); border-color: var(--target); color: #fff; }
+
+  .percent-row { display: flex; align-items: center; gap: 8px; }
+  .percent-row input[type="range"] { flex: 1; }
+  .percent-value { font-size: 13px; font-weight: 700; min-width: 36px; text-align: right; color: var(--text-muted); }
+
+  /* --- Modal / popup (goal create + edit) --- */
+
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    background: rgba(0, 0, 0, 0.45);
+    animation: overlayIn 0.15s ease both;
+  }
+  .modal-dialog {
+    width: 100%;
+    max-width: 360px;
+    max-height: calc(100vh - 40px);
+    overflow-y: auto;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-top: 3px solid var(--hz-color, var(--target));
+    border-radius: var(--radius);
+    padding: 18px;
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.25);
+    animation: dialogIn 0.18s cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+  /* closeModal() adds .is-closing, then re-renders once the exit anim ends */
+  .modal-overlay.is-closing { animation: overlayIn 0.14s ease reverse both; }
+  .modal-overlay.is-closing .modal-dialog { animation: dialogIn 0.14s ease reverse both; }
+  .modal-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+  .modal-title { font-size: 15px; font-weight: 800; }
+  .modal-body { display: flex; flex-direction: column; gap: 6px; margin-bottom: 16px; }
+  .modal-body input, .modal-body select { width: 100%; }
+  .modal-body input[type="color"] { width: 30px; height: 30px; }
+  .modal-actions { display: flex; align-items: center; justify-content: flex-end; gap: 8px; }
+  .modal-actions.spread { justify-content: space-between; }
+
+  /* primary confirm button inside a modal's action row */
+  .modal-primary {
+    border: none;
+    border-radius: var(--radius);
+    padding: 9px 16px;
+    background: var(--hz-color, var(--target));
+    color: #fff;
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: 0.2px;
+    cursor: pointer;
+    transition: background 0.15s ease, transform 0.05s ease;
+  }
+  .modal-primary:hover { background: color-mix(in srgb, var(--hz-color, var(--target)) 82%, black); }
+  .modal-primary:active { transform: scale(0.98); }
+</style>
+
+<div id="app"></div>
+
+<script>
+(function () {
+  "use strict";
+
+  var STORAGE_KEY = "momentum:v2";
+  var CATEGORY_PALETTE = ["#3a7ca5", "#2f6f4f", "#b5544a", "#8a5fb5", "#c98a2e", "#4a8a8a", "#b54a8a", "#6b7a3a"];
+  var DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+  // ---------- date / general utilities ----------
+
+  function uid(prefix) {
+    var bytes = new Uint8Array(6);
+    if (window.crypto && window.crypto.getRandomValues) crypto.getRandomValues(bytes);
+    else for (var i = 0; i < bytes.length; i++) bytes[i] = Math.floor(Math.random() * 256);
+    var s = "";
+    for (var j = 0; j < bytes.length; j++) s += bytes[j].toString(36);
+    return prefix + "_" + s.slice(0, 8);
+  }
+
+  function nowIso() { return new Date().toISOString(); }
+
+  function localDateKey(d) {
+    d = d || new Date();
+    var y = d.getFullYear();
+    var m = String(d.getMonth() + 1).padStart(2, "0");
+    var day = String(d.getDate()).padStart(2, "0");
+    return y + "-" + m + "-" + day;
+  }
+
+  function addDays(d, n) { var c = new Date(d); c.setDate(c.getDate() + n); return c; }
+
+  function parseDateKey(key) {
+    var p = key.split("-").map(Number);
+    return new Date(p[0], p[1] - 1, p[2]);
+  }
+
+  function formatFriendlyDate(d) {
+    return d.toLocaleDateString(undefined, { weekday: "long", month: "short", day: "numeric" });
+  }
+
+  function formatShortDate(d) {
+    return d.toLocaleDateString(undefined, { month: "numeric", day: "numeric" });
+  }
+
+  function formatWeekRange(start, end) {
+    var opts = { month: "short", day: "numeric" };
+    return start.toLocaleDateString(undefined, opts) + " – " + end.toLocaleDateString(undefined, opts);
+  }
+
+  // Monday-start week containing `date` (matches the Calendar; also drives
+  // the Input Tracker week view and the Dashboard's "Week" filter).
+  function getWeekInfo(date) {
+    var back = (date.getDay() + 6) % 7; // days since Monday: Mon->0 .. Sun->6
+    var weekStart = addDays(date, -back);
+    var weekEnd = addDays(weekStart, 6);
+    return { weekStart: weekStart, weekEnd: weekEnd };
+  }
+
+  function formatTime12(hhmm) {
+    var parts = hhmm.split(":").map(Number);
+    var h = parts[0], m = parts[1];
+    var ampm = h >= 12 ? "pm" : "am";
+    var h12 = h % 12; if (h12 === 0) h12 = 12;
+    return h12 + (m ? ":" + String(m).padStart(2, "0") : "") + ampm;
+  }
+
+  // tiny safe DOM builder: text children become text nodes, never innerHTML.
+  // SVG_TAGS routes those tag names through the SVG namespace (plain
+  // createElement produces a non-rendering element for them) and skips the
+  // HTML-only className/value/etc. property shortcuts, since SVG elements
+  // don't support those the same way — everything just goes through
+  // setAttribute instead, which is correct for SVG attributes either way.
+  var SVG_TAGS = { svg: 1, path: 1, circle: 1, rect: 1, line: 1, polyline: 1, polygon: 1, g: 1, text: 1, tspan: 1 };
+  var SVG_NS = "http://www.w3.org/2000/svg";
+
+  function h(tag, attrs, children) {
+    var isSvg = !!SVG_TAGS[tag];
+    var e = isSvg ? document.createElementNS(SVG_NS, tag) : document.createElement(tag);
+    attrs = attrs || {};
+    for (var k in attrs) {
+      if (!Object.prototype.hasOwnProperty.call(attrs, k)) continue;
+      var v = attrs[k];
+      if (v == null) continue;
+      if (k === "class" && !isSvg) e.className = v;
+      else if (k.indexOf("on") === 0 && typeof v === "function") e.addEventListener(k.slice(2), v);
+      else if (!isSvg && (k === "value" || k === "disabled" || k === "selected" || k === "checked")) e[k] = v;
+      else e.setAttribute(k, v);
+    }
+    children = children == null ? [] : [].concat(children);
+    children.forEach(function (c) {
+      if (c == null) return;
+      e.appendChild(typeof c === "string" ? document.createTextNode(c) : c);
+    });
+    return e;
+  }
+
+  // The app's logo mark: an upward "momentum" trend line + arrowhead, white
+  // on the accent-colored badge drawn in CSS (.brand-mark). Fixed white
+  // stroke on purpose — it always sits on the colored badge, not on the
+  // page — so it stays legible in both themes.
+  function brandMark() {
+    return h("svg", {
+      viewBox: "0 0 24 24", width: "16", height: "16",
+      fill: "none", stroke: "#fff", "stroke-width": "2.2",
+      "stroke-linecap": "round", "stroke-linejoin": "round"
+    }, [
+      h("polyline", { points: "4 15 10 9 13 12 20 5" }),
+      h("polyline", { points: "14.5 5 20 5 20 10.5" })
+    ]);
+  }
+
+  // Minimalist single-color outline sidebar icons — stroke uses currentColor
+  // so each icon automatically follows the nav item's normal/hover/active
+  // text color and the light/dark theme, with no fill colors of its own.
+  function svgIcon(pathChildren) {
+    return h("svg", {
+      class: "nav-icon-svg", viewBox: "0 0 24 24", width: "16", height: "16",
+      fill: "none", stroke: "currentColor", "stroke-width": "1.8",
+      "stroke-linecap": "round", "stroke-linejoin": "round"
+    }, pathChildren);
+  }
+
+  var ICONS = {
+    dashboard: function () {
+      return svgIcon([
+        h("rect", { x: "4", y: "10", width: "4", height: "10", rx: "1" }),
+        h("rect", { x: "10", y: "6", width: "4", height: "14", rx: "1" }),
+        h("rect", { x: "16", y: "13", width: "4", height: "7", rx: "1" })
+      ]);
+    },
+    calendar: function () {
+      return svgIcon([
+        h("rect", { x: "3", y: "5", width: "18", height: "16", rx: "2" }),
+        h("line", { x1: "3", y1: "10", x2: "21", y2: "10" }),
+        h("line", { x1: "8", y1: "3", x2: "8", y2: "7" }),
+        h("line", { x1: "16", y1: "3", x2: "16", y2: "7" })
+      ]);
+    },
+    tracker: function () {
+      return svgIcon([
+        h("polyline", { points: "3.5 6 5 7.5 8 4.5" }),
+        h("line", { x1: "11", y1: "6", x2: "21", y2: "6" }),
+        h("polyline", { points: "3.5 13 5 14.5 8 11.5" }),
+        h("line", { x1: "11", y1: "13", x2: "21", y2: "13" }),
+        h("polyline", { points: "3.5 20 5 21.5 8 18.5" }),
+        h("line", { x1: "11", y1: "20", x2: "21", y2: "20" })
+      ]);
+    },
+    goals: function () {
+      return svgIcon([
+        h("circle", { cx: "12", cy: "12", r: "8" }),
+        h("circle", { cx: "12", cy: "12", r: "4.5" }),
+        h("circle", { cx: "12", cy: "12", r: "1" })
+      ]);
+    },
+    themeLight: function () {
+      return svgIcon([
+        h("circle", { cx: "12", cy: "12", r: "4.5" }),
+        h("line", { x1: "12", y1: "2.5", x2: "12", y2: "5" }),
+        h("line", { x1: "12", y1: "19", x2: "12", y2: "21.5" }),
+        h("line", { x1: "2.5", y1: "12", x2: "5", y2: "12" }),
+        h("line", { x1: "19", y1: "12", x2: "21.5", y2: "12" }),
+        h("line", { x1: "5.5", y1: "5.5", x2: "7.2", y2: "7.2" }),
+        h("line", { x1: "16.8", y1: "16.8", x2: "18.5", y2: "18.5" }),
+        h("line", { x1: "5.5", y1: "18.5", x2: "7.2", y2: "16.8" }),
+        h("line", { x1: "16.8", y1: "7.2", x2: "18.5", y2: "5.5" })
+      ]);
+    },
+    themeDark: function () {
+      return svgIcon([
+        h("path", { d: "M20 14.5A8.5 8.5 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z" })
+      ]);
+    },
+    themeAuto: function () {
+      return svgIcon([
+        h("circle", { cx: "12", cy: "12", r: "8.5" }),
+        h("path", { d: "M12 3.5a8.5 8.5 0 0 1 0 17z", fill: "currentColor", stroke: "none" })
+      ]);
+    }
+  };
+
+  // ---------- state ----------
+
+  function defaultCategoriesAndTasks() {
+    var now = nowIso();
+    var categories = [
+      { id: uid("cat"), name: "Productivity Improvement", color: CATEGORY_PALETTE[0], order: 0, archived: false, createdAt: now, archivedAt: null },
+      { id: uid("cat"), name: "Career Development", color: CATEGORY_PALETTE[1], order: 1, archived: false, createdAt: now, archivedAt: null },
+      { id: uid("cat"), name: "Health & Well-being", color: CATEGORY_PALETTE[2], order: 2, archived: false, createdAt: now, archivedAt: null }
+    ];
+    var allDays = [0, 1, 2, 3, 4, 5, 6];
+    var weekdays = [1, 2, 3, 4, 5];
+    var tasks = [
+      { id: uid("tsk"), categoryId: categories[0].id, name: "Deep work block", scheduledDays: allDays, nonNegotiable: true, order: 0, archived: false, createdAt: now, archivedAt: null },
+      { id: uid("tsk"), categoryId: categories[1].id, name: "Job search action", scheduledDays: weekdays, nonNegotiable: true, order: 0, archived: false, createdAt: now, archivedAt: null },
+      { id: uid("tsk"), categoryId: categories[2].id, name: "Move your body", scheduledDays: allDays, nonNegotiable: false, order: 0, archived: false, createdAt: now, archivedAt: null }
+    ];
+    return { categories: categories, tasks: tasks };
+  }
+
+  function createDefaultState() {
+    var seed = defaultCategoriesAndTasks();
+    return {
+      schemaVersion: 1,
+      createdAt: nowIso(),
+      settings: {},
+      categories: seed.categories,
+      tasks: seed.tasks,
+      statusesByTask: {},
+      scheduleBlocks: [],
+      goals: [],
+      identityStatement: ""
+    };
+  }
+
+  function loadState() {
+    var raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) {
+      var fresh = createDefaultState();
+      saveState(fresh);
+      return fresh;
+    }
+    try {
+      var parsed = JSON.parse(raw);
+      if (parsed.schemaVersion !== 1) console.warn("Momentum: unrecognized schemaVersion", parsed.schemaVersion, "- loading as-is.");
+      var migrated = false;
+      if (!parsed.scheduleBlocks) { parsed.scheduleBlocks = []; migrated = true; }
+      if (!parsed.goals) { parsed.goals = []; migrated = true; }
+      // Schedule blocks can no longer link to a task — resolve any
+      // existing link into a plain label (and the linked task's category
+      // color, if the block had none of its own) before dropping taskId,
+      // so a previously task-linked block doesn't go blank.
+      parsed.scheduleBlocks.forEach(function (b) {
+        if (b.taskId !== undefined) {
+          if (b.taskId && !b.label) {
+            var linkedTask = parsed.tasks.find(function (t) { return t.id === b.taskId; });
+            if (linkedTask) {
+              b.label = linkedTask.name || "New block";
+              if (!b.color) {
+                var linkedCat = parsed.categories.find(function (c) { return c.id === linkedTask.categoryId; });
+                if (linkedCat) b.color = linkedCat.color;
+              }
+            }
+          }
+          if (!b.label) b.label = "New block";
+          delete b.taskId;
+          migrated = true;
+        }
+      });
+      // Flex day was removed app-wide — drop the old setting if present.
+      if (parsed.settings && parsed.settings.flexDayOfWeek !== undefined) { delete parsed.settings.flexDayOfWeek; migrated = true; }
+      // Floor/target were dropped as a task concept entirely (not just
+      // hidden from the grid) — default nonNegotiable on older tasks and
+      // strip any leftover floor/target text so it doesn't linger unused.
+      parsed.tasks.forEach(function (t) {
+        if (t.nonNegotiable === undefined) { t.nonNegotiable = false; migrated = true; }
+        if (t.floor !== undefined) { delete t.floor; migrated = true; }
+        if (t.target !== undefined) { delete t.target; migrated = true; }
+        // A task with no scheduled days is never "applicable" anywhere, so
+        // its % / streak / dashboard stats silently read as "—". That's
+        // always a mistake — restore it to every day.
+        if (!Array.isArray(t.scheduledDays) || t.scheduledDays.length === 0) {
+          t.scheduledDays = [0, 1, 2, 3, 4, 5, 6];
+          migrated = true;
+        }
+      });
+      // identityStatement replaced the earlier identityStatements list (Phase 4
+      // is now a single free-text block, not several editable entries) — fold
+      // any old entries into the new field once, then drop the old array.
+      if (parsed.identityStatement == null) {
+        migrated = true;
+        if (Array.isArray(parsed.identityStatements) && parsed.identityStatements.length > 0) {
+          parsed.identityStatement = parsed.identityStatements
+            .slice().sort(function (a, b) { return a.order - b.order; })
+            .map(function (s) { return s.text; })
+            .filter(Boolean)
+            .join("\n\n");
+        } else {
+          parsed.identityStatement = "";
+        }
+      }
+      if (parsed.identityStatements !== undefined) { delete parsed.identityStatements; migrated = true; }
+      // `percent` is now the MANUAL-fallback progress; live progress is
+      // derived (see goalEffectiveProgress) from linked Input Tracker tasks
+      // (short-term) or linked child goals (mid/long). `parentGoalId` is
+      // back (it had been removed) to carry the child->parent link the
+      // roll-up needs. Old status/percent progress-mode fields still get
+      // folded onto `percent` then dropped. No-horizon goals default "mid".
+      parsed.goals.forEach(function (g) {
+        if (!g.horizon) { g.horizon = "mid"; migrated = true; }
+        if (g.deadline === undefined) { g.deadline = null; migrated = true; }
+        if (g.progressMode === "status" && g.status && g.status !== "not_started") {
+          g.percent = g.status === "done" ? 100 : 50;
+          migrated = true;
+        }
+        if (g.percent == null) { g.percent = 0; migrated = true; }
+        if (g.progressMode !== undefined) { delete g.progressMode; migrated = true; }
+        if (g.status !== undefined) { delete g.status; migrated = true; }
+        if (g.parentGoalId === undefined) { g.parentGoalId = null; migrated = true; }
+        if (g.linkedTaskIds === undefined) { g.linkedTaskIds = []; migrated = true; }
+        if (g.linkType === undefined) { g.linkType = null; migrated = true; }
+        if (g.countTarget === undefined) { g.countTarget = null; migrated = true; }
+      });
+      if (migrated) saveState(parsed); // persist the migrated shape immediately, not just on the user's next edit
+      return parsed;
+    } catch (e) {
+      console.error("Momentum: stored state was corrupt, starting fresh.", e);
+      var reset = createDefaultState();
+      saveState(reset);
+      return reset;
+    }
+  }
+
+  function saveState(s) { localStorage.setItem(STORAGE_KEY, JSON.stringify(s)); }
+
+  // ---------- categories ----------
+
+  function activeCategories(s) {
+    return s.categories.filter(function (c) { return !c.archived; }).sort(function (a, b) { return a.order - b.order; });
+  }
+
+  function nextCategoryColor(s) { return CATEGORY_PALETTE[s.categories.length % CATEGORY_PALETTE.length]; }
+
+  function addCategory(s) {
+    var maxOrder = s.categories.reduce(function (m, c) { return Math.max(m, c.order); }, -1);
+    var cat = { id: uid("cat"), name: "", color: nextCategoryColor(s), order: maxOrder + 1, archived: false, createdAt: nowIso(), archivedAt: null };
+    s.categories.push(cat);
+    saveState(s);
+    return cat;
+  }
+
+  function updateCategoryField(s, id, field, value) {
+    var c = s.categories.find(function (x) { return x.id === id; });
+    if (!c) return;
+    c[field] = value;
+    saveState(s);
+  }
+
+  function archiveCategory(s, id) {
+    var c = s.categories.find(function (x) { return x.id === id; });
+    if (!c) return;
+    c.archived = true;
+    c.archivedAt = nowIso();
+    s.tasks.filter(function (t) { return t.categoryId === id && !t.archived; }).forEach(function (t) {
+      t.archived = true;
+      t.archivedAt = nowIso();
+    });
+    saveState(s);
+  }
+
+  // ---------- tasks ----------
+
+  function activeTasksInCategory(s, categoryId) {
+    return s.tasks.filter(function (t) { return t.categoryId === categoryId && !t.archived; }).sort(function (a, b) { return a.order - b.order; });
+  }
+
+  function allTasksInCategory(s, categoryId) {
+    return s.tasks.filter(function (t) { return t.categoryId === categoryId; });
+  }
+
+  function addTask(s, categoryId) {
+    var siblings = s.tasks.filter(function (t) { return t.categoryId === categoryId; });
+    var maxOrder = siblings.reduce(function (m, t) { return Math.max(m, t.order); }, -1);
+    var task = {
+      id: uid("tsk"), categoryId: categoryId, name: "",
+      scheduledDays: [0, 1, 2, 3, 4, 5, 6], nonNegotiable: false, order: maxOrder + 1,
+      archived: false, createdAt: nowIso(), archivedAt: null
+    };
+    s.tasks.push(task);
+    saveState(s);
+    return task;
+  }
+
+  function updateTaskField(s, id, field, value) {
+    var t = s.tasks.find(function (x) { return x.id === id; });
+    if (!t) return;
+    t[field] = value;
+    saveState(s);
+  }
+
+  // Returns true if the toggle was applied. A task must keep at least one
+  // scheduled day — otherwise it's never "applicable" and its %, streak,
+  // and dashboard stats all silently read as "—".
+  function toggleTaskScheduledDay(s, id, dayIdx) {
+    var t = s.tasks.find(function (x) { return x.id === id; });
+    if (!t) return false;
+    var i = t.scheduledDays.indexOf(dayIdx);
+    if (i === -1) t.scheduledDays.push(dayIdx);
+    else if (t.scheduledDays.length > 1) t.scheduledDays.splice(i, 1);
+    else return false; // can't remove the last day
+    t.scheduledDays.sort(function (a, b) { return a - b; });
+    saveState(s);
+    return true;
+  }
+
+  function archiveTask(s, id) {
+    var t = s.tasks.find(function (x) { return x.id === id; });
+    if (!t) return;
+    t.archived = true;
+    t.archivedAt = nowIso();
+    saveState(s);
+  }
+
+  // ---------- daily status ----------
+
+  function isTaskScheduledOn(task, dateKey) {
+    var dow = parseDateKey(dateKey).getDay();
+    return task.scheduledDays.indexOf(dow) !== -1;
+  }
+
+  function derivedTaskStatus(s, task, dateKey) {
+    if (!isTaskScheduledOn(task, dateKey)) return "na";
+    var stored = s.statusesByTask[task.id] && s.statusesByTask[task.id][dateKey];
+    if (stored === "done" || stored === "not_done") return stored;
+    return "todo";
+  }
+
+  function setTaskStatus(s, taskId, dateKey, status) {
+    if (!s.statusesByTask[taskId]) s.statusesByTask[taskId] = {};
+    if (status) s.statusesByTask[taskId][dateKey] = status;
+    else delete s.statusesByTask[taskId][dateKey];
+    saveState(s);
+  }
+
+  // Single tap cycles: todo -> done -> not_done -> todo.
+  function cycleTaskStatus(s, taskId, dateKey) {
+    var current = s.statusesByTask[taskId] && s.statusesByTask[taskId][dateKey];
+    var next = current === "done" ? "not_done" : current === "not_done" ? null : "done";
+    setTaskStatus(s, taskId, dateKey, next);
+  }
+
+  // ---------- applicability + calculations (see docs/DATA-MODEL.md) ----------
+
+  function isTaskApplicableOn(task, dateKey, todayKey) {
+    var createdKey = localDateKey(new Date(task.createdAt));
+    if (createdKey > dateKey) return false;
+    if (task.archived && task.archivedAt) {
+      var archivedKey = localDateKey(new Date(task.archivedAt));
+      if (archivedKey <= dateKey) return false;
+    }
+    if (!isTaskScheduledOn(task, dateKey)) return false;
+    if (dateKey > todayKey) return false;
+    return true;
+  }
+
+  function computeTaskAccomplishment(s, task, todayKey) {
+    var createdKey = localDateKey(new Date(task.createdAt));
+    var done = 0, applicable = 0;
+    var cursor = parseDateKey(createdKey);
+    while (localDateKey(cursor) <= todayKey) {
+      var dk = localDateKey(cursor);
+      if (isTaskApplicableOn(task, dk, todayKey)) {
+        applicable++;
+        var st = s.statusesByTask[task.id] && s.statusesByTask[task.id][dk];
+        if (st === "done") done++;
+      }
+      cursor = addDays(cursor, 1);
+    }
+    if (applicable === 0) return null;
+    return { done: done, applicable: applicable, pct: Math.round((done / applicable) * 100) };
+  }
+
+  // Accomplishment for one specific week — this is what the Input Tracker's
+  // "Week %" column shows. Denominator is EVERY day the task is scheduled
+  // in that week (the whole Mon–Sun span — days already past, today, and
+  // weekdays still to come), so marking one day done reads as "1 of 5 this
+  // week = 20%", not 100%. The per-day createdAt/archivedAt gate is
+  // deliberately dropped here: within a week the task is active for, all of
+  // that week's scheduled slots count (the same cells the grid lets you
+  // tick). Only a week lying entirely outside the task's lifetime returns
+  // null ("—"). `weekDates` is the 7 Date objects the tracker already built.
+  function computeTaskWeekAccomplishment(s, task, weekDates, todayKey) {
+    var createdKey = localDateKey(new Date(task.createdAt));
+    var archivedKey = task.archived && task.archivedAt ? localDateKey(new Date(task.archivedAt)) : null;
+    var weekStartKey = localDateKey(weekDates[0]);
+    var weekEndKey = localDateKey(weekDates[weekDates.length - 1]);
+    if (weekEndKey < createdKey) return null;            // whole week before the task existed
+    if (archivedKey && weekStartKey >= archivedKey) return null; // whole week after it was archived
+    var done = 0, scheduled = 0;
+    weekDates.forEach(function (d) {
+      var dk = localDateKey(d);
+      if (!isTaskScheduledOn(task, dk)) return; // N/A weekday — never counts
+      scheduled++;
+      var st = s.statusesByTask[task.id] && s.statusesByTask[task.id][dk];
+      if (st === "done") done++;
+    });
+    if (scheduled === 0) return null;
+    return { done: done, scheduled: scheduled, pct: Math.round((done / scheduled) * 100) };
+  }
+
+  // Which bucket a single task-day falls into, or null if it isn't an entry
+  // at all (before the task existed, after it was archived, or in the
+  // future). "na" = the task exists that day but isn't scheduled on that
+  // weekday. Used by the Dashboard's range stats.
+  function taskDayBucket(s, task, dateKey, todayKey) {
+    if (dateKey > todayKey) return null;
+    if (localDateKey(new Date(task.createdAt)) > dateKey) return null;
+    if (task.archived && task.archivedAt && localDateKey(new Date(task.archivedAt)) <= dateKey) return null;
+    if (!isTaskScheduledOn(task, dateKey)) return "na";
+    var st = s.statusesByTask[task.id] && s.statusesByTask[task.id][dateKey];
+    if (st === "done") return "done";
+    if (st === "not_done") return "not_done";
+    return "todo";
+  }
+
+  // One pass over every task-day in [startKey, endKey] (clamped to today),
+  // for tasks whose category is still active. Feeds the whole Dashboard:
+  // headline %, the two charts, the non-negotiable/other card, the KPI grid.
+  //   totals / byCat[i] : { done, not_done, todo, na } entry counts
+  //   byGroup           : { nonneg, other } each { done, applicable }
+  //   applicable        : done + not_done + todo (NA excluded)
+  //   pct               : round(done / applicable * 100), or null
+  function computeRangeStats(s, startKey, endKey, todayKey) {
+    var end = endKey < todayKey ? endKey : todayKey;
+    var cats = activeCategories(s);
+    var idxById = {};
+    var byCat = cats.map(function (c, i) {
+      idxById[c.id] = i;
+      return { id: c.id, name: c.name, color: c.color, done: 0, not_done: 0, todo: 0, na: 0 };
+    });
+    var totals = { done: 0, not_done: 0, todo: 0, na: 0 };
+    var byGroup = { nonneg: { done: 0, applicable: 0 }, other: { done: 0, applicable: 0 } };
+    var byTaskId = {};
+
+    s.tasks.forEach(function (task) {
+      var ci = idxById[task.categoryId];
+      if (ci === undefined) return; // archived-category tasks are left out
+      var ts = byTaskId[task.id] = { done: 0, applicable: 0 };
+      var createdKey = localDateKey(new Date(task.createdAt));
+      var iterStart = createdKey > startKey ? createdKey : startKey;
+      if (iterStart > end) return;
+      var cursor = parseDateKey(iterStart);
+      while (localDateKey(cursor) <= end) {
+        var b = taskDayBucket(s, task, localDateKey(cursor), todayKey);
+        if (b) {
+          totals[b]++;
+          byCat[ci][b]++;
+          if (b !== "na") {
+            (task.nonNegotiable ? byGroup.nonneg : byGroup.other).applicable++;
+            ts.applicable++;
+            if (b === "done") { (task.nonNegotiable ? byGroup.nonneg : byGroup.other).done++; ts.done++; }
+          }
+        }
+        cursor = addDays(cursor, 1);
+      }
+    });
+
+    var byCatId = {};
+    byCat.forEach(function (c) {
+      c.applicable = c.done + c.not_done + c.todo;
+      c.pct = c.applicable ? Math.round((c.done / c.applicable) * 100) : null;
+      byCatId[c.id] = c;
+    });
+    var applicable = totals.done + totals.not_done + totals.todo;
+    return {
+      totals: totals, byCat: byCat, byCatId: byCatId, byGroup: byGroup, byTaskId: byTaskId,
+      applicable: applicable, done: totals.done,
+      pct: applicable ? Math.round((totals.done / applicable) * 100) : null
+    };
+  }
+
+  // 'hit' | 'miss' | 'transparent' for a category across all its tasks on one day.
+  function evaluateCategoryDay(s, tasks, dateKey, todayKey) {
+    var applicableTasks = tasks.filter(function (t) { return isTaskApplicableOn(t, dateKey, todayKey); });
+    if (applicableTasks.length === 0) return "transparent";
+    var statuses = applicableTasks.map(function (t) { return s.statusesByTask[t.id] && s.statusesByTask[t.id][dateKey]; });
+    if (dateKey === todayKey) {
+      var allLogged = statuses.every(function (st) { return st === "done" || st === "not_done"; });
+      if (!allLogged) return "transparent"; // today isn't finished yet, don't judge it
+    }
+    var allDone = statuses.every(function (st) { return st === "done"; });
+    return allDone ? "hit" : "miss";
+  }
+
+  function computeCategoryStreak(s, category, todayKey) {
+    var tasks = allTasksInCategory(s, category.id);
+    if (tasks.length === 0) return 0;
+    var earliest = null;
+    tasks.forEach(function (t) { var k = localDateKey(new Date(t.createdAt)); if (!earliest || k < earliest) earliest = k; });
+    var streak = 0;
+    var cursor = parseDateKey(todayKey);
+    while (localDateKey(cursor) >= earliest) {
+      var dk = localDateKey(cursor);
+      var result = evaluateCategoryDay(s, tasks, dk, todayKey);
+      if (result === "hit") streak++;
+      else if (result === "miss") break;
+      cursor = addDays(cursor, -1);
+    }
+    return streak;
+  }
+
+  // ---------- schedule blocks ----------
+
+  function addScheduleBlock(s, block) {
+    block.id = uid("blk");
+    s.scheduleBlocks.push(block);
+    saveState(s);
+  }
+
+  function removeScheduleBlock(s, id) {
+    s.scheduleBlocks = s.scheduleBlocks.filter(function (b) { return b.id !== id; });
+    saveState(s);
+  }
+
+  function clearAllScheduleBlocks(s) {
+    s.scheduleBlocks = [];
+    saveState(s);
+  }
+
+  function resolveBlockLabelAndColor(s, block) {
+    return { label: block.label || "(untitled)", color: block.color || null };
+  }
+
+  // ---------- goals ----------
+
+  function activeGoalsByHorizon(s, horizon) {
+    return s.goals.filter(function (g) { return !g.archived && g.horizon === horizon; }).sort(function (a, b) { return a.order - b.order; });
+  }
+
+  // opts (all optional): { name, deadline, parentGoalId, linkedTaskIds,
+  // linkType, countTarget }. The horizon is passed separately — it's chosen
+  // in the "New goal" popup and decides which section the new card lands in.
+  function addGoal(s, horizon, opts) {
+    opts = opts || {};
+    var siblings = s.goals.filter(function (g) { return g.horizon === horizon; });
+    var maxOrder = siblings.reduce(function (m, g) { return Math.max(m, g.order); }, -1);
+    var goal = {
+      id: uid("gol"), name: opts.name || "", horizon: horizon,
+      deadline: opts.deadline || null, percent: 0,
+      parentGoalId: opts.parentGoalId || null,
+      linkedTaskIds: opts.linkedTaskIds || [],
+      linkType: opts.linkType || null,          // null (manual) | "rate" | "count"
+      countTarget: opts.countTarget || null,    // number, only for linkType "count"
+      order: maxOrder + 1, archived: false, createdAt: nowIso(), updatedAt: nowIso()
+    };
+    s.goals.push(goal);
+    saveState(s);
+    return goal;
+  }
+
+  function updateGoalField(s, id, field, value) {
+    var g = s.goals.find(function (x) { return x.id === id; });
+    if (!g) return;
+    g[field] = value;
+    g.updatedAt = nowIso();
+    saveState(s);
+  }
+
+  function archiveGoal(s, id) {
+    var g = s.goals.find(function (x) { return x.id === id; });
+    if (!g) return;
+    g.archived = true;
+    saveState(s);
+  }
+
+  // The horizon a goal can ladder up into (short -> mid -> long). Long has
+  // nothing above it. Drives both the parent picker and the roll-up.
+  var PARENT_HORIZON = { short: "mid", mid: "long" };
+
+  // Total all-time count of "done" entries stored for a task.
+  function countDoneEntries(s, taskId) {
+    var m = s.statusesByTask[taskId];
+    if (!m) return 0;
+    var n = 0;
+    for (var k in m) if (Object.prototype.hasOwnProperty.call(m, k) && m[k] === "done") n++;
+    return n;
+  }
+
+  // A goal's live progress, derived rather than stored:
+  //  - short-term with linkType + linked tasks -> "rate" (avg of each
+  //    linked task's accomplishment %) or "count" (Σ done entries / target).
+  //  - mid/long with linked child goals -> average of their live progress.
+  //  - otherwise -> the manual `percent` value.
+  // Returns { pct, source: "linked" | "rollup" | "manual" }. `seen` guards
+  // against a hand-edited parent cycle.
+  function goalEffectiveProgress(goal, seen) {
+    seen = seen || {};
+    if (seen[goal.id]) return { pct: goal.percent || 0, source: "manual" };
+    seen[goal.id] = true;
+
+    if (goal.horizon === "short") {
+      var tasks = (goal.linkedTaskIds || [])
+        .map(function (id) { return state.tasks.find(function (t) { return t.id === id; }); })
+        .filter(function (t) { return t && !t.archived; });
+      if (goal.linkType && tasks.length) {
+        if (goal.linkType === "rate") {
+          var todayKey = localDateKey(new Date());
+          var vals = tasks.map(function (t) {
+            var acc = computeTaskAccomplishment(state, t, todayKey);
+            return acc ? acc.pct : 0;
+          });
+          var avg = vals.reduce(function (a, b) { return a + b; }, 0) / vals.length;
+          return { pct: Math.round(avg), source: "linked" };
+        }
+        if (goal.linkType === "count" && goal.countTarget > 0) {
+          var total = tasks.reduce(function (sum, t) { return sum + countDoneEntries(state, t.id); }, 0);
+          return { pct: Math.min(100, Math.round((total / goal.countTarget) * 100)), source: "linked" };
+        }
+      }
+      return { pct: goal.percent || 0, source: "manual" };
+    }
+
+    // mid / long: roll up from child goals that ladder into this one
+    var children = state.goals.filter(function (g) { return !g.archived && g.parentGoalId === goal.id; });
+    if (children.length) {
+      var sum = children.reduce(function (acc, c) { return acc + goalEffectiveProgress(c, seen).pct; }, 0);
+      return { pct: Math.round(sum / children.length), source: "rollup" };
+    }
+    return { pct: goal.percent || 0, source: "manual" };
+  }
+
+  // Overdue: a deadline in the past with the goal not yet at 100% (by its
+  // live progress). `pct` may be passed in when the caller already has it.
+  function isGoalOverdue(goal, pct) {
+    if (!goal.deadline) return false;
+    if (goal.deadline >= localDateKey(new Date())) return false;
+    if (pct == null) pct = goalEffectiveProgress(goal).pct;
+    return pct < 100;
+  }
+
+  // ---------- identity ----------
+
+  function updateIdentityText(s, text) {
+    s.identityStatement = text;
+    saveState(s);
+  }
+
+  // ---------- app ----------
+
+  var SIDEBAR_KEY = "momentum:sidebarCollapsed";
+  var ACTIVE_TAB_KEY = "momentum:activeTab";
+  var VALID_TABS = ["dashboard", "calendar", "tracker", "goals"];
+
+  var state = loadState();
+  var appEl = document.getElementById("app");
+
+  // Reopens on whatever tab was last active, not always Dashboard — a
+  // per-device UI preference, so it's kept in its own localStorage key
+  // rather than inside momentum:v2 (same reasoning as SIDEBAR_KEY below).
+  var storedTab = localStorage.getItem(ACTIVE_TAB_KEY);
+  var activeTab = VALID_TABS.indexOf(storedTab) !== -1 ? storedTab : "dashboard";
+
+  function setActiveTab(tab) {
+    activeTab = tab;
+    localStorage.setItem(ACTIVE_TAB_KEY, tab);
+    render();
+  }
+
+  var sidebarCollapsed;
+  var storedSidebarPref = localStorage.getItem(SIDEBAR_KEY);
+  if (storedSidebarPref === "1") sidebarCollapsed = true;
+  else if (storedSidebarPref === "0") sidebarCollapsed = false;
+  else sidebarCollapsed = window.innerWidth < 880;
+
+  // Theme: "auto" (default, follows the OS/browser's prefers-color-scheme —
+  // see the CSS at the top of this file), or an explicit "light"/"dark"
+  // override via a data-theme attribute on <html>, which the CSS also
+  // defines. Cycled with one button in the sidebar footer.
+  var THEME_KEY = "momentum:theme";
+  var THEMES = ["auto", "light", "dark"];
+  var theme = THEMES.indexOf(localStorage.getItem(THEME_KEY)) !== -1 ? localStorage.getItem(THEME_KEY) : "auto";
+
+  function applyTheme(t) {
+    if (t === "auto") document.documentElement.removeAttribute("data-theme");
+    else document.documentElement.setAttribute("data-theme", t);
+  }
+  applyTheme(theme);
+
+  function cycleTheme() {
+    theme = THEMES[(THEMES.indexOf(theme) + 1) % THEMES.length];
+    localStorage.setItem(THEME_KEY, theme);
+    applyTheme(theme);
+    render();
+  }
+
+  // Dashboard time filter — controls every Input-Tracker-derived element on
+  // the Dashboard. Per-device UI state, so it lives in its own key like the
+  // tab/sidebar/theme prefs, not inside momentum:v2. Defaults to "today".
+  var DASH_FILTER_KEY = "momentum:dashFilter";
+  var DASH_MODES = ["today", "week", "month", "year", "custom"];
+  var dashFilter = { mode: "today", start: "", end: "" };
+  try {
+    var storedDF = JSON.parse(localStorage.getItem(DASH_FILTER_KEY) || "null");
+    if (storedDF && DASH_MODES.indexOf(storedDF.mode) !== -1) {
+      dashFilter = { mode: storedDF.mode, start: storedDF.start || "", end: storedDF.end || "" };
+    }
+  } catch (e) { /* corrupt pref — keep the default */ }
+  var dashMenuOpen = false; // is the time-filter dropdown showing
+
+  function saveDashFilter() { localStorage.setItem(DASH_FILTER_KEY, JSON.stringify(dashFilter)); }
+
+  function setDashMode(mode) {
+    dashFilter.mode = mode;
+    if (mode === "custom" && (!dashFilter.start || !dashFilter.end)) {
+      var t = localDateKey(new Date());
+      if (!dashFilter.end) dashFilter.end = t;
+      if (!dashFilter.start) dashFilter.start = localDateKey(getWeekInfo(new Date()).weekStart);
+    }
+    saveDashFilter();
+    render();
+  }
+
+  // Resolve the current filter to concrete date keys. endKey is capped at
+  // today for the fixed modes; a custom range is used as picked (the entry
+  // iterator still clamps to today, so a future end just adds empty days).
+  function dashRange() {
+    var now = new Date();
+    var todayKey = localDateKey(now);
+    var f = dashFilter;
+    if (f.mode === "week") {
+      return { mode: f.mode, startKey: localDateKey(getWeekInfo(now).weekStart), endKey: todayKey, label: "This week" };
+    }
+    if (f.mode === "month") {
+      return { mode: f.mode, startKey: localDateKey(new Date(now.getFullYear(), now.getMonth(), 1)), endKey: todayKey,
+               label: now.toLocaleDateString(undefined, { month: "long", year: "numeric" }) };
+    }
+    if (f.mode === "year") {
+      return { mode: f.mode, startKey: localDateKey(new Date(now.getFullYear(), 0, 1)), endKey: todayKey, label: String(now.getFullYear()) };
+    }
+    if (f.mode === "custom") {
+      var a = f.start || todayKey, b = f.end || todayKey;
+      if (a > b) { var tmp = a; a = b; b = tmp; }
+      return { mode: f.mode, startKey: a, endKey: b, label: a + "  →  " + b };
+    }
+    return { mode: "today", startKey: todayKey, endKey: todayKey, label: "Today" };
+  }
+
+  var trackerWeekStart = null;   // Date (Sunday), lazily defaulted to the current week
+  var editingCategoryId = null;  // which category's inline edit strip is open
+  var editingTaskId = null;      // which task's inline edit strip is open
+  var editingBlockId = null;     // id of the Calendar block whose Edit popup is open, else null
+  var creatingBlock = false;     // true while the "Add block" popup is open
+  var editingGoalId = null;      // id of the goal whose Edit popup is open, else null
+  var creatingGoal = false;      // true while the "New goal" popup is open
+
+  function toggleSidebar() {
+    sidebarCollapsed = !sidebarCollapsed;
+    localStorage.setItem(SIDEBAR_KEY, sidebarCollapsed ? "1" : "0");
+    render();
+  }
+
+  function render() {
+    appEl.innerHTML = "";
+    appEl.appendChild(renderTopBar());
+    var shell = h("div", { class: "shell" });
+    shell.appendChild(renderSidebar());
+    var main = h("div", { class: "main" });
+    var view;
+    if (activeTab === "dashboard") view = renderDashboard();
+    else if (activeTab === "calendar") view = renderCalendar();
+    else if (activeTab === "goals") view = renderGoals();
+    else view = renderTracker();
+    main.appendChild(view);
+    shell.appendChild(main);
+    appEl.appendChild(shell);
+    if (creatingGoal) {
+      appEl.appendChild(renderGoalCreateModal());
+    } else if (editingGoalId) {
+      var editGoal = state.goals.find(function (g) { return g.id === editingGoalId; });
+      if (editGoal) appEl.appendChild(renderGoalEditModal(editGoal));
+      else editingGoalId = null;
+    } else if (creatingBlock) {
+      appEl.appendChild(renderBlockCreateModal());
+    } else if (editingBlockId) {
+      var editBlock = state.scheduleBlocks.find(function (b) { return b.id === editingBlockId; });
+      if (editBlock) appEl.appendChild(renderBlockEditModal(editBlock));
+      else editingBlockId = null;
+    }
+  }
+
+  // Every modal close routes through here: play the exit animation, then run
+  // `commit` (which flips the open-state flag and re-renders, dropping the
+  // modal from the DOM). Guarded so a second close during the animation just
+  // finishes immediately.
+  function closeModal(commit) {
+    var ov = appEl.querySelector(".modal-overlay");
+    if (!ov || ov.classList.contains("is-closing")) { commit(); return; }
+    ov.classList.add("is-closing");
+    var done = false;
+    function finish() { if (done) return; done = true; commit(); }
+    ov.addEventListener("animationend", finish);
+    setTimeout(finish, 220); // fallback if animationend doesn't fire
+  }
+
+  // Phone-only masthead (hidden by CSS at wider widths, where the sidebar
+  // already carries the brand and theme control): centered logo, theme
+  // toggle at the right.
+  function renderTopBar() {
+    var themeIconFn = theme === "light" ? ICONS.themeLight : theme === "dark" ? ICONS.themeDark : ICONS.themeAuto;
+    var themeLabel = theme === "light" ? "Light" : theme === "dark" ? "Dark" : "Auto";
+    return h("header", { class: "topbar" }, [
+      h("div", { class: "topbar-left" }),
+      h("div", { class: "brand-lockup" }, [
+        h("div", { class: "brand-mark", title: "Momentum" }, brandMark()),
+        h("div", { class: "brand" }, "Momentum")
+      ]),
+      h("div", { class: "topbar-right" }, [
+        h("button", {
+          class: "topbar-theme",
+          title: "Theme: " + themeLabel + " (click to change)",
+          onclick: cycleTheme
+        }, [h("span", { class: "nav-icon" }, themeIconFn()), h("span", null, themeLabel)])
+      ])
+    ]);
+  }
+
+  function renderSidebar() {
+    var items = [
+      ["dashboard", "Dashboard"],
+      ["calendar", "Calendar"],
+      ["tracker", "Input Tracker"],
+      ["goals", "Goals"]
+    ];
+    var nav = h("div", { class: "nav-list" }, items.map(function (item) {
+      return h("button", {
+        class: "nav-item" + (activeTab === item[0] ? " active" : ""),
+        title: item[1],
+        onclick: function () { setActiveTab(item[0]); }
+      }, [h("span", { class: "nav-icon" }, ICONS[item[0]]()), h("span", { class: "nav-label" }, item[1])]);
+    }));
+    var themeIconFn = theme === "light" ? ICONS.themeLight : theme === "dark" ? ICONS.themeDark : ICONS.themeAuto;
+    var themeLabel = theme === "light" ? "Light" : theme === "dark" ? "Dark" : "Auto";
+    var themeBtn = h("button", {
+      class: "nav-item theme-toggle",
+      title: "Theme: " + themeLabel + " (click to change)",
+      onclick: cycleTheme
+    }, [h("span", { class: "nav-icon" }, themeIconFn()), h("span", { class: "nav-label" }, themeLabel)]);
+
+    return h("div", { class: "sidebar" + (sidebarCollapsed ? " collapsed" : "") }, [
+      h("div", { class: "sidebar-header" }, [
+        h("div", { class: "brand-lockup" }, [
+          h("div", { class: "brand-mark", title: "Momentum" }, brandMark()),
+          h("div", { class: "brand" }, "Momentum")
+        ]),
+        h("button", { class: "sidebar-toggle", title: sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar", onclick: toggleSidebar }, sidebarCollapsed ? "»" : "«")
+      ]),
+      nav,
+      h("div", { class: "sidebar-footer" }, [themeBtn])
+    ]);
+  }
+
+  // Shared day-of-week picker, currently only used for a task's scheduled
+  // days (multi-select — onToggle flips one day in/out of the array).
+  // onToggle mutates that array, so after it runs the button reflects the
+  // new state in place — no full re-render needed.
+  function renderDayPicker(activeDays, onToggle) {
+    var row = h("div", { class: "day-row" });
+    DAY_LABELS.forEach(function (label, idx) {
+      var btn = h("button", {
+        class: "day-btn" + (activeDays.indexOf(idx) !== -1 ? " active" : ""),
+        onclick: function () { onToggle(idx); btn.classList.toggle("active", activeDays.indexOf(idx) !== -1); }
+      }, label);
+      row.appendChild(btn);
+    });
+    return row;
+  }
+
+  // ---------- Input Tracker ----------
+
+  function renderTracker() {
+    var root = h("div", { class: "view tracker" });
+    var today = new Date();
+    var todayKey = localDateKey(today);
+
+    if (!trackerWeekStart) trackerWeekStart = getWeekInfo(today).weekStart;
+    var weekStart = getWeekInfo(trackerWeekStart).weekStart;
+    var weekEnd = addDays(weekStart, 6);
+    var thisWeekStart = getWeekInfo(today).weekStart;
+    var canGoNext = weekStart < thisWeekStart;
+
+    root.appendChild(h("h1", {}, "Input Tracker"));
+    root.appendChild(h("p", { class: "hint" }, "Tap a day cell to cycle: To-Do → Done → Not Done → To-Do."));
+
+    var toolbar = h("div", { class: "tracker-toolbar" });
+    var prevAttrs = { class: "week-nav-btn", onclick: function () { trackerWeekStart = addDays(weekStart, -7); render(); } };
+    var nextAttrs = { class: "week-nav-btn" };
+    if (canGoNext) nextAttrs.onclick = function () { trackerWeekStart = addDays(weekStart, 7); render(); };
+    else nextAttrs.disabled = true;
+    toolbar.appendChild(h("div", { class: "week-nav" }, [
+      h("button", prevAttrs, "‹"),
+      h("div", { class: "week-nav-label" }, formatWeekRange(weekStart, weekEnd)),
+      h("button", nextAttrs, "›")
+    ]));
+
+    root.appendChild(toolbar);
+
+    var categories = activeCategories(state);
+    if (categories.length === 0) {
+      root.appendChild(h("p", { class: "hint" }, "No categories yet."));
+    } else {
+      var wrap = h("div", { class: "tracker-wrap" });
+      var table = h("table", { class: "tracker-table" });
+
+      var headRow = h("tr");
+      headRow.appendChild(h("th", { class: "tt-corner" }, "Category / Task"));
+      var weekDates = [];
+      for (var i = 0; i < 7; i++) {
+        var d = addDays(weekStart, i);
+        weekDates.push(d);
+        var dk = localDateKey(d);
+        headRow.appendChild(h("th", {
+          class: "tt-day-head" + (dk === todayKey ? " tt-today" : "")
+        }, [DAY_LABELS[d.getDay()], h("span", { class: "tt-day-date" }, formatShortDate(d))]));
+      }
+      headRow.appendChild(h("th", { class: "tt-pct-head", title: "Done this week ÷ days scheduled this week" }, "Week %"));
+      table.appendChild(h("thead", {}, headRow));
+
+      var tbody = h("tbody");
+      categories.forEach(function (cat, ci) {
+        var tasks = activeTasksInCategory(state, cat.id);
+        if (ci > 0) tbody.appendChild(h("tr", { class: "tt-cat-gap" }, h("td", { colspan: "9" })));
+        var catRow = h("tr", { class: "tt-category-row", style: "--cat-color:" + cat.color + ";" });
+        var catCell = h("td", { colspan: "9" }, [
+          h("span", { class: "tt-cat-name" }, cat.name || "(unnamed category)"),
+          h("span", { class: "tt-cat-count" }, tasks.length + (tasks.length === 1 ? " task" : " tasks")),
+          h("button", { class: "icon-btn", onclick: function () { editingCategoryId = editingCategoryId === cat.id ? null : cat.id; render(); } }, "✎ Edit")
+        ]);
+        catRow.appendChild(catCell);
+        tbody.appendChild(catRow);
+
+        if (editingCategoryId === cat.id) {
+          tbody.appendChild(renderCategoryEditStrip(cat));
+        }
+
+        tasks.forEach(function (task) {
+          tbody.appendChild(renderTaskRow(task, cat, weekDates, todayKey));
+          if (editingTaskId === task.id) tbody.appendChild(renderTaskEditStrip(task));
+        });
+
+        var addTaskRow = h("tr", { class: "tt-add-row" });
+        addTaskRow.appendChild(h("td", { colspan: "9" }, h("button", {
+          onclick: function () {
+            var t = addTask(state, cat.id);
+            editingTaskId = t.id;
+            render();
+          }
+        }, "+ Add task to " + (cat.name || "this category"))));
+        tbody.appendChild(addTaskRow);
+      });
+
+      table.appendChild(tbody);
+      wrap.appendChild(table);
+      root.appendChild(wrap);
+    }
+
+    root.appendChild(h("button", {
+      class: "secondary-btn add-category-btn",
+      onclick: function () {
+        var c = addCategory(state);
+        editingCategoryId = c.id;
+        render();
+      }
+    }, "+ Add category"));
+
+    return root;
+  }
+
+  function renderTaskRow(task, category, weekDates, todayKey) {
+    var row = h("tr", { class: "tt-task-row" });
+    var nameCell = h("td", { class: "tt-task-name", style: "--cat-color:" + category.color + ";" }, [
+      task.nonNegotiable ? h("span", { class: "tt-nn-mark", title: "Non-negotiable" }, "⭐") : null,
+      task.name || "(unnamed task)",
+      h("button", { class: "icon-btn", onclick: function () { editingTaskId = editingTaskId === task.id ? null : task.id; render(); } }, "✎")
+    ]);
+    row.appendChild(nameCell);
+
+    // Cells update themselves (and this row's % cell) on tap rather than
+    // triggering a full-table render() — the whole table rebuilding on every
+    // status tap flashed and blocked the CSS colour transition.
+    var pctCell = h("td", { class: "tt-pct-cell" });
+    function paintPct() {
+      var acc = computeTaskWeekAccomplishment(state, task, weekDates, todayKey);
+      pctCell.textContent = acc ? acc.pct + "%" : "—";
+      pctCell.title = acc
+        ? acc.done + " of " + acc.scheduled + " scheduled days this week done"
+        : "Not scheduled on any day this week";
+    }
+
+    weekDates.forEach(function (d) {
+      var dk = localDateKey(d);
+      var cell = h("td", {});
+      function paintCell() {
+        var status = derivedTaskStatus(state, task, dk);
+        var future = dk > todayKey;
+        cell.className = "tt-cell status-" + status + (future && status !== "na" ? " future" : "");
+        cell.textContent = status === "done" ? "✓" : status === "not_done" ? "✕" : status === "na" ? "–" : "";
+      }
+      if (derivedTaskStatus(state, task, dk) !== "na" && dk <= todayKey) {
+        cell.addEventListener("click", function () {
+          cycleTaskStatus(state, task.id, dk);
+          paintCell();
+          paintPct();
+        });
+      }
+      paintCell();
+      row.appendChild(cell);
+    });
+
+    paintPct();
+    row.appendChild(pctCell);
+
+    return row;
+  }
+
+  function renderCategoryEditStrip(cat) {
+    var row = h("tr", { class: "tt-edit-row" });
+    var form = h("div", { class: "tt-edit-form" });
+
+    form.appendChild(h("div", { class: "tt-edit-form-row" }, [
+      h("input", {
+        type: "text", value: cat.name, placeholder: "Category name",
+        oninput: function (e) { updateCategoryField(state, cat.id, "name", e.target.value); }
+      })
+    ]));
+
+    // Swatches update in place (no full re-render, so the edit strip doesn't
+    // flicker its entrance animation on every colour tap). The category
+    // header row picks up the new colour on the next natural render — same
+    // as the name field, which also doesn't live-update the header.
+    var swatchRow = h("div", { class: "swatch-row" });
+    var paletteBtns = [];
+    CATEGORY_PALETTE.forEach(function (color) {
+      var b = h("button", {
+        class: "swatch" + (cat.color === color ? " active" : ""),
+        style: "background:" + color + ";",
+        onclick: function () {
+          updateCategoryField(state, cat.id, "color", color);
+          paletteBtns.forEach(function (pb, i) { pb.classList.toggle("active", CATEGORY_PALETTE[i] === color); });
+        }
+      });
+      paletteBtns.push(b);
+      swatchRow.appendChild(b);
+    });
+    swatchRow.appendChild(h("input", {
+      type: "color", class: "swatch-custom", value: cat.color,
+      oninput: function (e) {
+        updateCategoryField(state, cat.id, "color", e.target.value);
+        paletteBtns.forEach(function (pb) { pb.classList.remove("active"); });
+      }
+    }));
+    form.appendChild(swatchRow);
+
+    form.appendChild(h("div", { class: "tt-edit-form-row" }, [
+      h("button", { class: "icon-btn", onclick: function () { archiveCategory(state, cat.id); editingCategoryId = null; render(); } }, "Archive category"),
+      h("button", { class: "icon-btn", onclick: function () { editingCategoryId = null; render(); } }, "Done")
+    ]));
+
+    row.appendChild(h("td", { colspan: "9" }, form));
+    return row;
+  }
+
+  function renderTaskEditStrip(task) {
+    var row = h("tr", { class: "tt-edit-row" });
+    var form = h("div", { class: "tt-edit-form" });
+
+    form.appendChild(h("div", { class: "tt-edit-form-row" }, [
+      h("input", { type: "text", value: task.name, placeholder: "Task name", oninput: function (e) { updateTaskField(state, task.id, "name", e.target.value); } })
+    ]));
+    form.appendChild(h("div", { class: "hint small" }, "Scheduled days:"));
+    form.appendChild(renderDayPicker(task.scheduledDays, function (idx) { toggleTaskScheduledDay(state, task.id, idx); }));
+
+    var nnBtn = h("button", {
+      class: "mode-btn" + (task.nonNegotiable ? " active" : ""),
+      title: "Show this task in the Dashboard's Non-negotiable group",
+      onclick: function () {
+        updateTaskField(state, task.id, "nonNegotiable", !task.nonNegotiable);
+        nnBtn.classList.toggle("active", task.nonNegotiable);
+        nnBtn.textContent = task.nonNegotiable ? "⭐ Non-negotiable" : "☆ Mark as non-negotiable";
+      }
+    }, task.nonNegotiable ? "⭐ Non-negotiable" : "☆ Mark as non-negotiable");
+    form.appendChild(nnBtn);
+
+    form.appendChild(h("div", { class: "tt-edit-form-row" }, [
+      h("button", { class: "icon-btn", onclick: function () { archiveTask(state, task.id); editingTaskId = null; render(); } }, "Archive task"),
+      h("button", { class: "icon-btn", onclick: function () { editingTaskId = null; render(); } }, "Done")
+    ]));
+
+    row.appendChild(h("td", { colspan: "9" }, form));
+    return row;
+  }
+
+  // ---------- Dashboard ----------
+
+  // Every active task, split by its nonNegotiable flag and sorted by
+  // category then order. NOT filtered to "scheduled today" here — the
+  // "Today" view filters to today's tasks in renderDashTaskCard, while the
+  // wider ranges (Week/Month/…) list every task with its % for the range.
+  function todaysTasksSplit(todayKey) {
+    var catOrder = {};
+    state.categories.forEach(function (c) { catOrder[c.id] = c.order; });
+    var nonNegotiable = [], other = [];
+    state.tasks.forEach(function (t) {
+      if (t.archived) return;
+      if (localDateKey(new Date(t.createdAt)) > todayKey) return; // not created yet
+      (t.nonNegotiable ? nonNegotiable : other).push(t);
+    });
+    function byCategoryThenOrder(a, b) { return (catOrder[a.categoryId] - catOrder[b.categoryId]) || (a.order - b.order); }
+    nonNegotiable.sort(byCategoryThenOrder);
+    other.sort(byCategoryThenOrder);
+    return { nonNegotiable: nonNegotiable, other: other };
+  }
+
+  // Marks / unmarks the task done for `todayKey` only — it's a per-day key
+  // in statusesByTask, so tomorrow's Dashboard renders with a fresh (all
+  // un-done) list without anything being reset explicitly.
+  function toggleTodayTaskDone(taskId, todayKey, currentlyDone) {
+    setTaskStatus(state, taskId, todayKey, currentlyDone ? null : "done");
+    render();
+  }
+
+  // Today view of a task group: every task shown is scheduled today and is
+  // one tap from done (tap again to undo). Tasks not scheduled today are
+  // left off entirely (the caller pre-filters) — no greyed "not today" rows.
+  function renderTodayTaskList(tasks, todayKey) {
+    if (tasks.length === 0) return h("p", { class: "hint small" }, "Nothing scheduled today.");
+    var list = h("div", { class: "today-task-list" });
+    tasks.forEach(function (task) {
+      var name = task.name || "(unnamed task)";
+      var isDone = derivedTaskStatus(state, task, todayKey) === "done";
+      list.appendChild(h("button", {
+        class: "today-task-item" + (isDone ? " done" : ""),
+        title: isDone ? "Done today — tap to undo" : "Tap to mark done for today",
+        "aria-pressed": isDone ? "true" : "false",
+        onclick: function () { toggleTodayTaskDone(task.id, todayKey, isDone); }
+      }, [
+        h("span", { class: "today-task-dot" }, isDone ? "✓" : ""),
+        h("span", { class: "today-task-name" }, name)
+      ]));
+    });
+    return list;
+  }
+
+  // Range view of a task group: one row per task with its % over the range.
+  function renderRangeTaskList(tasks, stats) {
+    if (tasks.length === 0) return h("p", { class: "hint small" }, "None yet.");
+    var list = h("div", { class: "dash-range-list" });
+    tasks.forEach(function (task) {
+      var ts = stats.byTaskId[task.id] || { done: 0, applicable: 0 };
+      var pct = ts.applicable ? Math.round((ts.done / ts.applicable) * 100) : null;
+      list.appendChild(h("div", { class: "dash-range-task" }, [
+        h("span", { class: "dash-range-task-name" }, task.name || "(unnamed task)"),
+        h("span", { class: "dash-range-task-val" }, ts.applicable ? pct + "%  ·  " + ts.done + "/" + ts.applicable : "—")
+      ]));
+    });
+    return list;
+  }
+
+  // --- Dashboard time filter ---
+
+  var DASH_MODE_LABELS = { today: "Today", week: "This week", month: "This month", year: "This year", custom: "Custom range" };
+  var DASH_MODE_OPTIONS = [["today", "Today"], ["week", "Week"], ["month", "Month"], ["year", "Year"], ["custom", "Custom range"]];
+
+  function renderDashFilter(range) {
+    var bar = h("div", { class: "dash-filter" });
+
+    var wrap = h("div", { class: "dash-filter-wrap" + (dashMenuOpen ? " open" : "") });
+    wrap.appendChild(h("button", {
+      class: "dash-filter-trigger",
+      "aria-haspopup": "true", "aria-expanded": dashMenuOpen ? "true" : "false",
+      onclick: function () { dashMenuOpen = !dashMenuOpen; render(); }
+    }, [
+      ICONS.calendar(),
+      h("span", { class: "dash-filter-cur" }, DASH_MODE_LABELS[dashFilter.mode] || "Today"),
+      h("span", { class: "dash-filter-chev" }, svgIcon([h("polyline", { points: "6 9 12 15 18 9" })]))
+    ]));
+
+    if (dashMenuOpen) {
+      wrap.appendChild(h("div", { class: "dash-menu-backdrop", onclick: function () { dashMenuOpen = false; render(); } }));
+      var menu = h("div", { class: "dash-menu", role: "menu" });
+      DASH_MODE_OPTIONS.forEach(function (m) {
+        menu.appendChild(h("button", {
+          class: "dash-menu-item" + (dashFilter.mode === m[0] ? " active" : ""),
+          role: "menuitem",
+          onclick: function () { dashMenuOpen = false; setDashMode(m[0]); }
+        }, m[1]));
+      });
+      wrap.appendChild(menu);
+    }
+    bar.appendChild(wrap);
+
+    if (dashFilter.mode === "custom") {
+      var maxKey = localDateKey(new Date());
+      bar.appendChild(h("div", { class: "dash-custom" }, [
+        h("input", {
+          type: "date", value: dashFilter.start || range.startKey, max: maxKey,
+          onchange: function (e) { dashFilter.start = e.target.value; saveDashFilter(); render(); }
+        }),
+        h("span", { class: "dash-custom-sep" }, "→"),
+        h("input", {
+          type: "date", value: dashFilter.end || range.endKey, max: maxKey,
+          onchange: function (e) { dashFilter.end = e.target.value; saveDashFilter(); render(); }
+        })
+      ]));
+    }
+    return bar;
+  }
+
+  // --- SVG donut ---
+
+  function donutPolar(cx, cy, r, a) { return [cx + r * Math.sin(a), cy - r * Math.cos(a)]; }
+  function donutSlice(cx, cy, rO, rI, a0, a1) {
+    var large = (a1 - a0) > Math.PI ? 1 : 0;
+    var p1 = donutPolar(cx, cy, rO, a0), p2 = donutPolar(cx, cy, rO, a1);
+    var p3 = donutPolar(cx, cy, rI, a1), p4 = donutPolar(cx, cy, rI, a0);
+    return "M" + p1[0] + " " + p1[1] +
+      " A" + rO + " " + rO + " 0 " + large + " 1 " + p2[0] + " " + p2[1] +
+      " L" + p3[0] + " " + p3[1] +
+      " A" + rI + " " + rI + " 0 " + large + " 0 " + p4[0] + " " + p4[1] + " Z";
+  }
+
+  function renderDonut(parts, centerBig, centerSmall) {
+    var total = parts.reduce(function (s, p) { return s + p.value; }, 0);
+    var SZ = 180, cx = SZ / 2, cy = SZ / 2, rO = 80, rI = 50, rw = rO - rI;
+    var svg = h("svg", { class: "donut", viewBox: "0 0 " + SZ + " " + SZ, role: "img" });
+    if (total <= 0) {
+      svg.appendChild(h("circle", { cx: cx, cy: cy, r: (rO + rI) / 2, style: "fill:none; stroke:var(--no-data); stroke-width:" + rw }));
+    } else {
+      var ang = 0;
+      parts.forEach(function (p) {
+        if (p.value <= 0) return;
+        var frac = p.value / total;
+        var a0 = ang, a1 = ang + frac * Math.PI * 2;
+        ang = a1;
+        if (frac > 0.999) {
+          svg.appendChild(h("circle", { cx: cx, cy: cy, r: (rO + rI) / 2, style: "fill:none; stroke:" + p.color + "; stroke-width:" + rw }));
+        } else {
+          svg.appendChild(h("path", { d: donutSlice(cx, cy, rO, rI, a0, a1), style: "fill:" + p.color }));
+        }
+        if (frac >= 0.08) {
+          var lp = donutPolar(cx, cy, (rO + rI) / 2, (a0 + a1) / 2);
+          svg.appendChild(h("text", {
+            x: lp[0], y: lp[1], "text-anchor": "middle", "dominant-baseline": "central",
+            style: "font-size:12px; font-weight:700; fill:#fff; paint-order:stroke; stroke:rgba(0,0,0,0.32); stroke-width:3px;"
+          }, Math.round(frac * 100) + "%"));
+        }
+      });
+    }
+    if (centerBig != null) {
+      svg.appendChild(h("text", { x: cx, y: cy - 3, "text-anchor": "middle", "dominant-baseline": "central", class: "donut-center" }, String(centerBig)));
+      if (centerSmall) svg.appendChild(h("text", { x: cx, y: cy + 15, "text-anchor": "middle", "dominant-baseline": "central", class: "donut-center-sub" }, centerSmall));
+    }
+    return svg;
+  }
+
+  // --- the two chart cards ---
+
+  function renderEntryPieCard(stats) {
+    // Denominator is every scheduled task-entry in the range (up to today),
+    // not just the ones logged — so with nothing done the ring is 100%
+    // "Not done", and it fills toward "Done" as habits get checked off.
+    // "Not done" here folds in both explicit Not-Done marks and still-To-Do
+    // entries; N/A days (task not scheduled) never count.
+    var total = stats.applicable;
+    var doneN = stats.done;
+    var notDoneN = total - doneN;
+    var parts = [
+      { label: "Done", value: doneN, color: "var(--target)" },
+      { label: "Not done", value: notDoneN, color: "var(--miss)" }
+    ];
+    var card = h("div", { class: "dash-card" });
+    card.appendChild(h("div", { class: "dash-card-title" }, "Done vs not done — overall"));
+    if (total === 0) {
+      card.appendChild(h("p", { class: "hint small" }, "Nothing scheduled in this range."));
+      return card;
+    }
+    var legend = h("div", { class: "dash-legend" });
+    parts.forEach(function (p) {
+      legend.appendChild(h("div", { class: "dash-legend-row" }, [
+        h("span", { class: "dash-legend-sw", style: "background:" + p.color + ";" }),
+        h("span", { class: "dash-legend-label" }, p.label),
+        h("span", { class: "dash-legend-pct" }, Math.round((p.value / total) * 100) + "%"),
+        h("span", { class: "dash-legend-count" }, "(" + p.value + ")")
+      ]));
+    });
+    card.appendChild(h("div", { class: "dash-pie-body" }, [
+      renderDonut(parts, (stats.pct != null ? stats.pct : 0) + "%", "done"),
+      legend
+    ]));
+    return card;
+  }
+
+  function renderCategoryBarCard(stats) {
+    var card = h("div", { class: "dash-card" });
+    card.appendChild(h("div", { class: "dash-card-title" }, "Done vs not done — by category"));
+    if (!stats.byCat.length) {
+      card.appendChild(h("p", { class: "hint small" }, "No categories yet."));
+      return card;
+    }
+    if (!stats.byCat.some(function (c) { return c.applicable > 0; })) {
+      card.appendChild(h("p", { class: "hint small" }, "No task entries in this range."));
+      return card;
+    }
+    var bars = h("div", { class: "dash-bars" });
+    stats.byCat.forEach(function (c) {
+      var donePct = c.applicable ? (c.done / c.applicable) * 100 : 0;
+      bars.appendChild(h("div", { class: "dash-bar-row" }, [
+        h("div", { class: "dash-bar-head" }, [
+          h("span", { class: "dash-bar-name" }, [h("span", { class: "dash-bar-dot", style: "background:" + c.color + ";" }), c.name || "(unnamed)"]),
+          h("span", { class: "dash-bar-val" }, c.applicable ? Math.round(donePct) + "%  ·  " + c.done + "/" + c.applicable : "no entries")
+        ]),
+        h("div", { class: "dash-bar-track" }, [h("span", { class: "dash-bar-done", style: "width:" + donePct + "%;" })])
+      ]));
+    });
+    card.appendChild(bars);
+    return card;
+  }
+
+  // --- non-negotiable / other card (tappable on Today, stats otherwise) ---
+
+  // Group heading; the non-negotiable group gets a ★ (via CSS) and, when a
+  // count is passed, a "done / total" tally pinned to the right.
+  function groupTitle(label, count) {
+    var el = h("div", { class: "today-group-title" }, label);
+    if (count) el.appendChild(h("span", { class: "today-group-count" }, count));
+    return el;
+  }
+
+  function renderDashTaskCard(range, stats, todayKey) {
+    var card = h("div", { class: "today-card" });
+    var split = todaysTasksSplit(todayKey);
+
+    if (range.mode === "today") {
+      var applicableToday = function (t) { return isTaskApplicableOn(t, todayKey, todayKey); };
+      var nnToday = split.nonNegotiable.filter(applicableToday);
+      var otherToday = split.other.filter(applicableToday);
+      var nnDone = nnToday.filter(function (t) { return derivedTaskStatus(state, t, todayKey) === "done"; }).length;
+      card.appendChild(h("div", { class: "today-card-title" }, "Today · " + formatFriendlyDate(new Date())));
+      card.appendChild(h("div", { class: "today-groups" }, [
+        h("div", { class: "today-group nonneg" }, [
+          groupTitle("Non-negotiable", nnToday.length ? nnDone + "/" + nnToday.length : ""),
+          renderTodayTaskList(nnToday, todayKey)
+        ]),
+        h("div", { class: "today-group other" }, [
+          groupTitle("Other tasks", ""),
+          renderTodayTaskList(otherToday, todayKey)
+        ])
+      ]));
+      return card;
+    }
+
+    function group(label, g, tasks, variant) {
+      var pct = g.applicable ? Math.round((g.done / g.applicable) * 100) : null;
+      return h("div", { class: "today-group " + variant }, [
+        groupTitle(label, ""),
+        h("div", { class: "dash-group-pct" }, pct != null ? pct + "%" : "—"),
+        h("div", { class: "dash-group-sub" }, g.applicable ? g.done + " of " + g.applicable + " done" : "Nothing scheduled in range"),
+        h("div", { class: "dash-bar-track" }, [h("span", { class: "dash-bar-done", style: "width:" + (pct || 0) + "%;" })]),
+        renderRangeTaskList(tasks, stats)
+      ]);
+    }
+    card.appendChild(h("div", { class: "today-card-title" }, "Task completion · " + range.label));
+    card.appendChild(h("div", { class: "today-groups" }, [
+      group("Non-negotiable", stats.byGroup.nonneg, split.nonNegotiable, "nonneg"),
+      group("Other tasks", stats.byGroup.other, split.other, "other")
+    ]));
+    return card;
+  }
+
+  function renderDashboard() {
+    var root = h("div", { class: "view dashboard" });
+    var todayKey = localDateKey(new Date());
+    var range = dashRange();
+    var stats = computeRangeStats(state, range.startKey, range.endKey, todayKey);
+
+    root.appendChild(h("h1", {}, "Dashboard"));
+    root.appendChild(h("p", { class: "hint" }, "Computed from Input Tracker, for the selected time range."));
+
+    root.appendChild(renderDashFilter(range));
+
+    root.appendChild(h("div", { class: "dash-summary" }, [
+      h("span", { class: "dash-summary-range" }, range.label),
+      h("span", { class: "dash-summary-main" }, stats.applicable ? stats.pct + "% done" : "No scheduled tasks in range"),
+      stats.applicable ? h("span", { class: "dash-summary-sub" }, stats.done + " of " + stats.applicable + " scheduled task-entries") : null
+    ]));
+
+    root.appendChild(renderDashTaskCard(range, stats, todayKey));
+
+    root.appendChild(h("div", { class: "dash-charts" }, [
+      renderEntryPieCard(stats),
+      renderCategoryBarCard(stats)
+    ]));
+
+    root.appendChild(h("h2", {}, "By category"));
+    var categories = activeCategories(state);
+    if (categories.length === 0) {
+      root.appendChild(h("p", { class: "hint" }, "No categories yet — add one in Input Tracker."));
+      return root;
+    }
+
+    var grid = h("div", { class: "kpi-grid" });
+    categories.forEach(function (cat) {
+      var cs = stats.byCatId[cat.id] || { done: 0, applicable: 0, pct: null };
+      var streak = computeCategoryStreak(state, cat, todayKey);
+      grid.appendChild(h("div", { class: "kpi-card", style: "--cat-color:" + cat.color + ";" }, [
+        h("div", { class: "kpi-card-name" }, [h("span", { class: "kpi-dot" }), cat.name || "(unnamed category)"]),
+        h("div", { class: "kpi-pct" }, cs.pct != null ? cs.pct + "%" : "—"),
+        h("div", { class: "kpi-pct-label" }, cs.applicable ? cs.done + " / " + cs.applicable + " entries in range" : "No entries in range"),
+        h("div", { class: "kpi-streak" }, [h("strong", {}, String(streak)), " day streak (current)"])
+      ]));
+    });
+    root.appendChild(grid);
+
+    return root;
+  }
+
+  // ---------- Calendar ----------
+
+  var CAL_START_HOUR = 6;
+  var CAL_END_HOUR = 23;
+  var CAL_PX_PER_HOUR = 36;
+  var CAL_DAY_START_MIN = CAL_START_HOUR * 60;
+
+  // The calendar renders Monday-first. Storage is untouched: dayOfWeek stays
+  // 0=Sun..6=Sat (JS getDay()); Sunday just sorts last on screen. Input
+  // Tracker / Dashboard weeks are unaffected — they still start Sunday.
+  var CAL_DAY_ORDER = [1, 2, 3, 4, 5, 6, 0];
+
+  var CAL_MIN_STEPS = ["00", "15", "30", "45"];
+  var CAL_DURATIONS = [
+    { label: "30 min", min: 30 },
+    { label: "1h", min: 60 },
+    { label: "1h 30m", min: 90 },
+    { label: "2h", min: 120 }
+  ];
+
+  function timeToMinutes(hhmm) { var p = hhmm.split(":").map(Number); return p[0] * 60 + p[1]; }
+
+  function minutesToTime(total) {
+    total = Math.max(0, Math.min(23 * 60 + 45, total));
+    return String(Math.floor(total / 60)).padStart(2, "0") + ":" + String(total % 60).padStart(2, "0");
+  }
+
+  function hourLabel(h24) {
+    var h12 = h24 % 12; if (h12 === 0) h12 = 12;
+    return h12 + " " + (h24 % 24 < 12 ? "AM" : "PM");
+  }
+
+  function renderCalendar() {
+    var root = h("div", { class: "view calendar" });
+    var todayDow = new Date().getDay();
+
+    root.appendChild(h("div", { class: "view-header" }, [
+      h("h1", {}, "Calendar"),
+      h("button", {
+        class: "header-add-btn",
+        onclick: function () { creatingBlock = true; render(); }
+      }, "＋ Add block")
+    ]));
+    root.appendChild(h("p", { class: "hint" },
+      "A repeating weekly reference template — not tied to specific dates, no reminders. Tap any block to edit it."));
+
+    var wrap = h("div", { class: "cal-wrap" });
+    var grid = h("div", { class: "cal-grid" });
+
+    var gutter = h("div", { class: "cal-gutter" });
+    gutter.appendChild(h("div", { class: "cal-day-head" }, " "));
+    for (var hr = CAL_START_HOUR; hr <= CAL_END_HOUR; hr++) {
+      gutter.appendChild(h("div", { class: "cal-gutter-cell" }, formatTime12(String(hr).padStart(2, "0") + ":00")));
+    }
+    grid.appendChild(gutter);
+
+    var totalHeight = (CAL_END_HOUR - CAL_START_HOUR + 1) * CAL_PX_PER_HOUR;
+
+    CAL_DAY_ORDER.forEach(function (dow) {
+      var col = h("div", { class: "cal-day-col" });
+      col.appendChild(h("div", { class: "cal-day-head" + (dow === todayDow ? " today" : "") }, DAY_LABELS[dow]));
+      var body = h("div", { class: "cal-day-body", style: "height:" + totalHeight + "px;" });
+
+      // A block is a <button> now — a plain click opens its Edit popup.
+      // Still no drag/draw/resize anywhere on the grid.
+      state.scheduleBlocks.filter(function (b) { return b.dayOfWeek === dow; }).forEach(function (block) {
+        var resolved = resolveBlockLabelAndColor(state, block);
+        var startMin = timeToMinutes(block.startTime) - CAL_DAY_START_MIN;
+        var endMin = timeToMinutes(block.endTime) - CAL_DAY_START_MIN;
+        var top = (startMin / 60) * CAL_PX_PER_HOUR;
+        var height = Math.max(((endMin - startMin) / 60) * CAL_PX_PER_HOUR, 16);
+        body.appendChild(h("button", {
+          class: "cal-block",
+          title: "Edit " + resolved.label,
+          style: "top:" + top + "px; height:" + height + "px; --blk-color:" + (resolved.color || "var(--floor)") + ";",
+          onclick: function () { editingBlockId = block.id; render(); }
+        }, [resolved.label, h("span", { class: "cal-block-time" }, formatTime12(block.startTime) + "–" + formatTime12(block.endTime))]));
+      });
+
+      col.appendChild(body);
+      grid.appendChild(col);
+    });
+
+    wrap.appendChild(grid);
+    root.appendChild(wrap);
+
+    if (state.scheduleBlocks.length === 0) {
+      root.appendChild(h("p", { class: "hint cal-empty" }, "No blocks yet — use ＋ Add block."));
+    } else {
+      root.appendChild(h("button", {
+        class: "secondary-btn cal-clear-btn",
+        onclick: function () {
+          var count = state.scheduleBlocks.length;
+          if (!confirm("Delete all " + count + " block" + (count === 1 ? "" : "s") + " from the calendar? This can't be undone.")) return;
+          clearAllScheduleBlocks(state);
+          editingBlockId = null;
+          render();
+        }
+      }, "Clear calendar"));
+    }
+
+    return root;
+  }
+
+  function updateBlockField(s, id, field, value) {
+    var b = s.scheduleBlocks.find(function (x) { return x.id === id; });
+    if (!b) return;
+    b[field] = value;
+    saveState(s);
+  }
+
+  // Start / End time picker for the block popups. Deliberately NOT one long
+  // 15-minute megadropdown: an hour <select> (limited to the calendar's
+  // visible hours) + a minute <select> (:00/:15/:30/:45) per row, plus
+  // "duration" chips (30m / 1h / 1h30 / 2h) below that set End = Start + N.
+  // An existing off-grid hour/minute is kept as its own extra option.
+  // Ordering is enforced here (End always after Start) so callers can trust
+  // the (start, end) pair; both are "HH:MM" 24h. onChange fires per edit.
+  function renderTimeControls(start, end, onChange) {
+    function parts(t) { var p = t.split(":"); return { h: Number(p[0]), m: p[1] }; }
+    function toStr(p) { return String(p.h).padStart(2, "0") + ":" + p.m; }
+    var s = parts(start), e = parts(end);
+
+    function hourSelect(cur) {
+      var sel = h("select", { class: "cal-time-hr" });
+      var hrs = [];
+      for (var hr = CAL_START_HOUR; hr <= CAL_END_HOUR; hr++) hrs.push(hr);
+      if (hrs.indexOf(cur.h) === -1) hrs.unshift(cur.h);
+      hrs.forEach(function (hr) { sel.appendChild(h("option", { value: hr, selected: hr === cur.h }, hourLabel(hr))); });
+      return sel;
+    }
+    function minSelect(cur) {
+      var sel = h("select", { class: "cal-time-min" });
+      var mins = CAL_MIN_STEPS.slice();
+      if (mins.indexOf(cur.m) === -1) mins.unshift(cur.m);
+      mins.forEach(function (mm) { sel.appendChild(h("option", { value: mm, selected: mm === cur.m }, ":" + mm)); });
+      return sel;
+    }
+
+    var sHr = hourSelect(s), sMin = minSelect(s);
+    var eHr = hourSelect(e), eMin = minSelect(e);
+    var chipRow = h("div", { class: "cal-dur-row" });
+
+    function ensureOption(sel, val, label) {
+      if (!Array.from(sel.options).some(function (o) { return o.value === String(val); })) {
+        sel.insertBefore(h("option", { value: val }, label), sel.firstChild);
+      }
+    }
+    function syncEndSelects() {
+      ensureOption(eHr, e.h, hourLabel(e.h));
+      ensureOption(eMin, e.m, ":" + e.m);
+      eHr.value = String(e.h);
+      eMin.value = e.m;
+    }
+    function refreshChips() {
+      var dur = timeToMinutes(toStr(e)) - timeToMinutes(toStr(s));
+      Array.from(chipRow.children).forEach(function (c, i) {
+        c.classList.toggle("active", CAL_DURATIONS[i].min === dur);
+      });
+    }
+    function emit() { onChange(toStr(s), toStr(e)); refreshChips(); }
+
+    function afterStartChange() {
+      if (timeToMinutes(toStr(e)) <= timeToMinutes(toStr(s))) {
+        e = parts(minutesToTime(timeToMinutes(toStr(s)) + 60));
+        syncEndSelects();
+      }
+      emit();
+    }
+    function afterEndChange() {
+      if (timeToMinutes(toStr(e)) <= timeToMinutes(toStr(s))) {
+        e = parts(minutesToTime(timeToMinutes(toStr(s)) + 15));
+        syncEndSelects();
+      }
+      emit();
+    }
+    sHr.addEventListener("change", function () { s.h = Number(sHr.value); afterStartChange(); });
+    sMin.addEventListener("change", function () { s.m = sMin.value; afterStartChange(); });
+    eHr.addEventListener("change", function () { e.h = Number(eHr.value); afterEndChange(); });
+    eMin.addEventListener("change", function () { e.m = eMin.value; afterEndChange(); });
+
+    CAL_DURATIONS.forEach(function (d) {
+      chipRow.appendChild(h("button", {
+        class: "cal-dur-chip",
+        onclick: function () {
+          e = parts(minutesToTime(timeToMinutes(toStr(s)) + d.min));
+          syncEndSelects();
+          emit();
+        }
+      }, d.label));
+    });
+
+    refreshChips();
+    return h("div", { class: "cal-time" }, [
+      h("div", { class: "cal-time-row" }, [h("span", { class: "cal-time-tag" }, "Start"), sHr, h("span", { class: "cal-time-colon" }, ":"), sMin]),
+      h("div", { class: "cal-time-row" }, [h("span", { class: "cal-time-tag" }, "End"), eHr, h("span", { class: "cal-time-colon" }, ":"), eMin]),
+      chipRow
+    ]);
+  }
+
+  // Mon-first day picker for the block popups. `multi` true => toggle days
+  // in/out of the `selected` array; false => single pick (`selected` is the
+  // day index). onPick fires with the new value on every change.
+  function renderBlockDayPicker(selected, multi, onPick) {
+    var row = h("div", { class: "day-row" });
+    CAL_DAY_ORDER.forEach(function (dow) {
+      var isOn = multi ? selected.indexOf(dow) !== -1 : selected === dow;
+      var btn = h("button", {
+        class: "day-btn" + (isOn ? " active" : ""),
+        onclick: function () {
+          if (multi) {
+            var at = selected.indexOf(dow);
+            if (at === -1) selected.push(dow); else selected.splice(at, 1);
+            btn.classList.toggle("active", selected.indexOf(dow) !== -1);
+          } else {
+            Array.from(row.children).forEach(function (b) { b.classList.remove("active"); });
+            btn.classList.add("active");
+          }
+          onPick(dow);
+        }
+      }, DAY_LABELS[dow]);
+      row.appendChild(btn);
+    });
+    return row;
+  }
+
+  function modalOverlay(dialog, close) {
+    var overlay = h("div", {
+      class: "modal-overlay",
+      onclick: function (e) { if (e.target === overlay) close(); },
+      onkeydown: function (e) { if (e.key === "Escape") close(); }
+    }, [dialog]);
+    return overlay;
+  }
+
+  // "＋ Add block" (top of the Calendar view) opens this. Draft values live
+  // only in this closure until "＋ Add block" is pressed; picking several
+  // days adds one identical block per day. Cancel / ✕ / backdrop / Escape
+  // close without adding.
+  function renderBlockCreateModal() {
+    var draftDays = [new Date().getDay()];
+    var draftColor = "#3a7ca5";
+    var draftStart = "09:00";
+    var draftEnd = "10:00";
+
+    function close() { closeModal(function () { creatingBlock = false; render(); }); }
+
+    var nameInput = h("input", { type: "text", placeholder: "Block name" });
+    var colorInput = h("input", {
+      type: "color", class: "swatch-custom", value: draftColor,
+      oninput: function (e) { draftColor = e.target.value; }
+    });
+    var timeControls = renderTimeControls(draftStart, draftEnd, function (st, en) { draftStart = st; draftEnd = en; });
+
+    function submit() {
+      var name = nameInput.value.trim();
+      if (!name) { alert("Give the block a name first."); nameInput.focus(); return; }
+      if (draftDays.length === 0) { alert("Pick at least one day."); return; }
+      draftDays.slice().sort().forEach(function (dow) {
+        addScheduleBlock(state, { label: name, dayOfWeek: dow, startTime: draftStart, endTime: draftEnd, color: draftColor });
+      });
+      close();
+    }
+
+    var dialog = h("div", { class: "modal-dialog", style: "--hz-color:" + draftColor + ";" }, [
+      h("div", { class: "modal-head" }, [
+        h("div", { class: "modal-title" }, "Add block"),
+        h("button", { class: "icon-btn", title: "Cancel", onclick: close }, "✕")
+      ]),
+      h("div", { class: "modal-body" }, [].concat(
+        modalField("Name", nameInput),
+        modalField("Color", colorInput),
+        modalField("Days", renderBlockDayPicker(draftDays, true, function () {})),
+        modalField("Time", timeControls)
+      )),
+      h("div", { class: "modal-actions" }, [
+        h("button", { class: "secondary-btn", onclick: close }, "Cancel"),
+        h("button", { class: "modal-primary", onclick: submit }, "＋ Add block")
+      ])
+    ]);
+
+    var overlay = modalOverlay(dialog, close);
+    setTimeout(function () { nameInput.focus(); }, 0);
+    return overlay;
+  }
+
+  // Tapping a block on the grid opens this. Every field autosaves (like the
+  // goal Edit popup), so "Done" just closes; "Delete" removes the block.
+  function renderBlockEditModal(block) {
+    function close() { closeModal(function () { editingBlockId = null; render(); }); }
+
+    var nameInput = h("input", {
+      type: "text", placeholder: "Block name", value: block.label || "",
+      oninput: function (e) { updateBlockField(state, block.id, "label", e.target.value); }
+    });
+    var colorInput = h("input", {
+      type: "color", class: "swatch-custom", value: block.color || "#3a7ca5",
+      oninput: function (e) { updateBlockField(state, block.id, "color", e.target.value); }
+    });
+
+    var timeControls = renderTimeControls(block.startTime, block.endTime, function (st, en) {
+      updateBlockField(state, block.id, "startTime", st);
+      updateBlockField(state, block.id, "endTime", en);
+    });
+
+    var dialog = h("div", { class: "modal-dialog", style: "--hz-color:" + (block.color || "var(--floor)") + ";" }, [
+      h("div", { class: "modal-head" }, [
+        h("div", { class: "modal-title" }, "Edit block"),
+        h("button", { class: "icon-btn", title: "Done", onclick: close }, "✕")
+      ]),
+      h("div", { class: "modal-body" }, [].concat(
+        modalField("Name", nameInput),
+        modalField("Color", colorInput),
+        modalField("Day", renderBlockDayPicker(block.dayOfWeek, false, function (dow) { updateBlockField(state, block.id, "dayOfWeek", dow); })),
+        modalField("Time", timeControls)
+      )),
+      h("div", { class: "modal-actions spread" }, [
+        h("button", { class: "icon-btn", onclick: function () { closeModal(function () { removeScheduleBlock(state, block.id); editingBlockId = null; render(); }); } }, "Delete"),
+        h("button", { class: "modal-primary", onclick: close }, "Done")
+      ])
+    ]);
+
+    var overlay = modalOverlay(dialog, close);
+    setTimeout(function () { nameInput.focus(); }, 0);
+    return overlay;
+  }
+
+  // ---------- Goals ----------
+
+  // Short-to-long on purpose: the nearest-term work leads, per the current
+  // instructions (this list order also drives display order in Goals).
+  var HORIZONS = [
+    { key: "short", label: "Short-term", sub: "Days to weeks", color: "#c98a2e" },
+    { key: "mid", label: "Mid-term", sub: "Weeks to months", color: "#3a8f7c" },
+    { key: "long", label: "Long-term", sub: "Months to years", color: "#5b5fc7" }
+  ];
+
+  function renderGoals() {
+    var root = h("div", { class: "view goals" });
+    root.appendChild(h("div", { class: "view-header" }, [
+      h("h1", {}, "Goals"),
+      h("button", {
+        class: "header-add-btn",
+        onclick: function () { creatingGoal = true; render(); }
+      }, "＋ New goal")
+    ]));
+    root.appendChild(h("p", { class: "hint" }, "Not a daily screen — update these occasionally as things change."));
+
+    root.appendChild(h("h2", {}, "Identity"));
+    root.appendChild(h("p", { class: "hint" }, "Who this daily practice is becoming — separate from any single outcome."));
+    root.appendChild(h("textarea", {
+      class: "identity-block",
+      placeholder: "e.g. I'm becoming the kind of person who shows up daily on their goals, ships consistently, and keeps promises to themself.",
+      oninput: function (e) { updateIdentityText(state, e.target.value); }
+    }, state.identityStatement || ""));
+
+    var columns = h("div", { class: "horizon-columns" });
+    HORIZONS.forEach(function (hz) { columns.appendChild(renderHorizonSection(hz)); });
+    root.appendChild(columns);
+
+    return root;
+  }
+
+  function renderHorizonSection(hz) {
+    var section = h("div", { class: "horizon-section", style: "--hz-color:" + hz.color + ";" });
+    section.appendChild(h("div", { class: "horizon-head" }, [
+      h("h2", { class: "horizon-title" }, hz.label),
+      h("span", { class: "horizon-sub" }, hz.sub)
+    ]));
+
+    var goals = activeGoalsByHorizon(state, hz.key);
+    if (goals.length === 0) {
+      section.appendChild(h("p", { class: "hint" }, "No " + hz.label.toLowerCase() + " goals yet."));
+    } else {
+      var grid = h("div", { class: "goal-grid" });
+      goals.forEach(function (goal) { grid.appendChild(renderGoalCard(goal)); });
+      section.appendChild(grid);
+    }
+
+    return section;
+  }
+
+  // A goal card shows its name, a progress bar, a "Linked" / "Manual"
+  // indicator (is the progress live-tracked or hand-entered?), and an
+  // Overdue badge when applicable. The whole card is a button — clicking
+  // anywhere on it opens the Edit popup (renderGoalEditModal). Progress is
+  // derived by goalEffectiveProgress, so linked goals reflect current
+  // Input Tracker / child-goal state with no manual refresh.
+  function renderGoalCard(goal) {
+    var prog = goalEffectiveProgress(goal);
+    var pct = prog.pct;
+
+    var card = h("button", {
+      class: "goal-card",
+      title: "Edit " + (goal.name || "goal"),
+      onclick: function () { editingGoalId = goal.id; render(); }
+    }, [
+      h("span", { class: "goal-card-name" }, goal.name || "(unnamed goal)"),
+      h("span", { class: "goal-progress-track" }, [
+        h("span", { class: "goal-progress-fill", style: "width:" + pct + "%;" })
+      ])
+    ]);
+
+    var srcLabel = prog.source === "rollup" ? "Rolled up" : prog.source === "linked" ? "Linked" : "Manual";
+    var metaRow = h("span", { class: "goal-progress-meta" }, [
+      h("span", {}, pct + "%"),
+      h("span", { class: "goal-source" + (prog.source === "manual" ? "" : " auto") }, srcLabel)
+    ]);
+    if (isGoalOverdue(goal, pct)) metaRow.appendChild(h("span", { class: "goal-overdue" }, "Overdue"));
+    card.appendChild(metaRow);
+
+    return card;
+  }
+
+  // Small shared helper: a labelled field for the modal bodies.
+  function modalField(labelText, control) {
+    return [h("div", { class: "goal-field-label" }, labelText), control];
+  }
+
+  // The "＋ New goal" button (top of renderGoals) opens this. Draft values
+  // live only in this closure until "＋ Add goal" is pressed. The body
+  // rebuilds when the horizon changes, since a short-term goal also gets
+  // the task-link fields and a short/mid goal gets a "ladders up to" pick.
+  function renderGoalCreateModal() {
+    var draft = { horizon: "short", deadline: "", parentGoalId: "", linkType: null, taskIds: [], countTarget: "" };
+    function close() { closeModal(function () { creatingGoal = false; render(); }); }
+
+    var nameInput = h("input", { type: "text", placeholder: "Goal name" });
+
+    function submit() {
+      var name = nameInput.value.trim();
+      if (!name) { alert("Give the goal a name first."); nameInput.focus(); return; }
+      var opts = { name: name, deadline: draft.deadline || null, parentGoalId: draft.parentGoalId || null };
+      if (draft.horizon === "short" && draft.linkType) {
+        opts.linkType = draft.linkType;
+        opts.linkedTaskIds = draft.taskIds.slice();
+        if (draft.linkType === "count") {
+          var n = parseInt(draft.countTarget, 10);
+          opts.countTarget = (isNaN(n) || n <= 0) ? null : n;
+        }
+      }
+      addGoal(state, draft.horizon, opts);
+      close();
+    }
+
+    var body = h("div", { class: "modal-body" });
+    function field(label, control) { modalField(label, control).forEach(function (n) { body.appendChild(n); }); }
+
+    function rebuildBody() {
+      body.innerHTML = "";
+      field("Name", nameInput);
+
+      var horizonSelect = h("select", { onchange: function (e) { draft.horizon = e.target.value; draft.parentGoalId = ""; rebuildBody(); } });
+      HORIZONS.forEach(function (o) { horizonSelect.appendChild(h("option", { value: o.key, selected: o.key === draft.horizon }, o.label)); });
+      field("Horizon", horizonSelect);
+
+      field("Deadline", h("input", { type: "date", value: draft.deadline, onchange: function (e) { draft.deadline = e.target.value; } }));
+
+      var pk = PARENT_HORIZON[draft.horizon];
+      if (pk) {
+        var pl = HORIZONS.filter(function (x) { return x.key === pk; })[0].label.toLowerCase();
+        var ps = h("select", { onchange: function (e) { draft.parentGoalId = e.target.value; } });
+        ps.appendChild(h("option", { value: "" }, "— none —"));
+        activeGoalsByHorizon(state, pk).forEach(function (pg) { ps.appendChild(h("option", { value: pg.id, selected: draft.parentGoalId === pg.id }, pg.name || "(unnamed goal)")); });
+        field("Ladders up to (" + pl + " goal)", ps);
+      }
+
+      if (draft.horizon === "short") {
+        var row = h("div", { class: "goal-src-row" });
+        [["", "Manual"], ["rate", "Rate-based"], ["count", "Count-based"]].forEach(function (m) {
+          row.appendChild(h("button", {
+            class: "mode-btn" + ((draft.linkType || "") === m[0] ? " active" : ""),
+            onclick: function () { draft.linkType = m[0] || null; rebuildBody(); }
+          }, m[1]));
+        });
+        field("Progress", row);
+        if (draft.linkType === "count") {
+          field("Target count", h("input", { type: "number", min: "1", step: "1", value: draft.countTarget, placeholder: "e.g. 500", oninput: function (e) { draft.countTarget = e.target.value; } }));
+        }
+        if (draft.linkType) {
+          field("Linked tasks", renderTaskLinkPicker(draft.taskIds, function (id, on) {
+            var i = draft.taskIds.indexOf(id);
+            if (on && i === -1) draft.taskIds.push(id);
+            else if (!on && i !== -1) draft.taskIds.splice(i, 1);
+          }));
+        }
+      }
+    }
+    rebuildBody();
+
+    var dialog = h("div", { class: "modal-dialog" }, [
+      h("div", { class: "modal-head" }, [
+        h("div", { class: "modal-title" }, "New goal"),
+        h("button", { class: "icon-btn", title: "Cancel", onclick: close }, "✕")
+      ]),
+      body,
+      h("div", { class: "modal-actions" }, [
+        h("button", { class: "secondary-btn", onclick: close }, "Cancel"),
+        h("button", { class: "modal-primary", onclick: submit }, "＋ Add goal")
+      ])
+    ]);
+
+    var overlay = modalOverlay(dialog, close);
+    setTimeout(function () { nameInput.focus(); }, 0);
+    return overlay;
+  }
+
+  // A scrollable checklist of active Input Tracker tasks ("Category · Task")
+  // for linking a short-term goal to tracker data. onToggle(taskId, checked).
+  function renderTaskLinkPicker(selectedIds, onToggle) {
+    var list = h("div", { class: "tasklink-list" });
+    var activeTasks = state.tasks.filter(function (t) { return !t.archived; });
+    if (!activeTasks.length) {
+      list.appendChild(h("div", { class: "hint small" }, "No tasks in Input Tracker yet."));
+      return list;
+    }
+    var catName = {};
+    state.categories.forEach(function (c) { catName[c.id] = c.name || "(unnamed)"; });
+    activeTasks
+      .slice()
+      .sort(function (a, b) { return (catName[a.categoryId] || "").localeCompare(catName[b.categoryId] || "") || a.order - b.order; })
+      .forEach(function (t) {
+        var cb = h("input", { type: "checkbox", checked: selectedIds.indexOf(t.id) !== -1 });
+        cb.addEventListener("change", function () { onToggle(t.id, cb.checked); });
+        list.appendChild(h("label", { class: "tasklink-item" }, [
+          cb, h("span", {}, (catName[t.categoryId] || "—") + " · " + (t.name || "(unnamed task)"))
+        ]));
+      });
+    return list;
+  }
+
+  // Clicking a goal card opens this. Every field autosaves immediately.
+  // The Progress area depends on the goal: a short-term goal chooses
+  // Manual / Rate-based / Count-based and (for the latter two) links Input
+  // Tracker tasks; a mid/long goal rolls up from child goals if any ladder
+  // into it, else falls back to a manual slider. goalEffectiveProgress is
+  // the single source of truth for the displayed number.
+  function renderGoalEditModal(goal) {
+    function close() { closeModal(function () { editingGoalId = null; render(); }); }
+    function readGoal() { return state.goals.find(function (x) { return x.id === goal.id; }) || goal; }
+    function childGoals(g) { return state.goals.filter(function (x) { return !x.archived && x.parentGoalId === g.id; }); }
+    function activeLinkedTasks(g) {
+      return (g.linkedTaskIds || [])
+        .map(function (id) { return state.tasks.find(function (t) { return t.id === id; }); })
+        .filter(function (t) { return t && !t.archived; });
+    }
+
+    var hz = HORIZONS.filter(function (x) { return x.key === goal.horizon; })[0] || HORIZONS[0];
+
+    var nameInput = h("input", {
+      type: "text", value: goal.name, placeholder: "Goal name",
+      oninput: function (e) { updateGoalField(state, goal.id, "name", e.target.value); }
+    });
+
+    var horizonSelect = h("select", {
+      onchange: function (e) { updateGoalField(state, goal.id, "horizon", e.target.value); render(); }
+    });
+    HORIZONS.forEach(function (opt) {
+      horizonSelect.appendChild(h("option", { value: opt.key, selected: goal.horizon === opt.key }, opt.label));
+    });
+
+    var deadlineRow = h("div", { class: "goal-deadline-row" });
+    deadlineRow.appendChild(h("input", {
+      type: "date", value: goal.deadline || "",
+      onchange: function (e) { updateGoalField(state, goal.id, "deadline", e.target.value || null); refreshBadge(); }
+    }));
+    function refreshBadge() {
+      var existing = deadlineRow.querySelector(".goal-overdue");
+      var shouldShow = isGoalOverdue(readGoal());
+      if (shouldShow && !existing) deadlineRow.appendChild(h("span", { class: "goal-overdue" }, "Overdue"));
+      else if (!shouldShow && existing) deadlineRow.removeChild(existing);
+    }
+
+    // "Ladders up to" (parent goal, one horizon up) — feeds the parent's roll-up.
+    var parentNodes = [];
+    var parentKey = PARENT_HORIZON[goal.horizon];
+    if (parentKey) {
+      var parentLabel = HORIZONS.filter(function (x) { return x.key === parentKey; })[0].label.toLowerCase();
+      var parentSelect = h("select", {
+        onchange: function (e) { updateGoalField(state, goal.id, "parentGoalId", e.target.value || null); }
+      });
+      parentSelect.appendChild(h("option", { value: "" }, "— none —"));
+      activeGoalsByHorizon(state, parentKey).forEach(function (pg) {
+        parentSelect.appendChild(h("option", { value: pg.id, selected: goal.parentGoalId === pg.id }, pg.name || "(unnamed goal)"));
+      });
+      parentNodes = modalField("Ladders up to (" + parentLabel + " goal)", parentSelect);
+    }
+
+    // --- Progress area ---
+    var progressWrap = h("div", { class: "goal-progress-field" });
+    var readoutBox = h("div", { class: "goal-readout" });
+
+    function buildSlider(g) {
+      var pv = h("span", { class: "percent-value" }, (g.percent || 0) + "%");
+      var range = h("input", {
+        type: "range", min: "0", max: "100", step: "5", value: String(g.percent || 0),
+        oninput: function (e) {
+          var val = Number(e.target.value);
+          updateGoalField(state, goal.id, "percent", val);
+          pv.textContent = val + "%";
+          refreshBadge();
+        }
+      });
+      return h("div", { class: "percent-row" }, [range, pv]);
+    }
+
+    // Value-only refresh (typing a target, ticking a task, changing a child)
+    // — never rebuilds the controls, so inputs keep focus.
+    function fillReadout() {
+      readoutBox.innerHTML = "";
+      readoutBox.style.display = "";
+      var g = readGoal();
+      var prog = goalEffectiveProgress(g);
+      if (prog.source === "manual") {
+        if (g.horizon === "short" && g.linkType) {
+          readoutBox.appendChild(h("div", { class: "goal-linked-sub" },
+            "Not linked yet — showing the manual fallback (" + (g.percent || 0) + "%). " +
+            (g.linkType === "count" && !(g.countTarget > 0) ? "Set a target count." : "Tick at least one task.")));
+        } else {
+          readoutBox.style.display = "none";
+        }
+        refreshBadge();
+        return;
+      }
+      readoutBox.appendChild(h("div", { class: "goal-linked-readout" }, "Live progress: " + prog.pct + "%"));
+      if (prog.source === "rollup") {
+        var kids = childGoals(g);
+        readoutBox.appendChild(h("div", { class: "goal-linked-sub" }, "average of " + kids.length + " child goal" + (kids.length === 1 ? "" : "s")));
+        var listEl = h("div", { class: "goal-rollup-list" });
+        kids.forEach(function (c) { listEl.appendChild(h("div", {}, "· " + (c.name || "(unnamed)") + " — " + goalEffectiveProgress(c).pct + "%")); });
+        readoutBox.appendChild(listEl);
+      } else {
+        var tasks = activeLinkedTasks(g);
+        if (g.linkType === "rate") {
+          readoutBox.appendChild(h("div", { class: "goal-linked-sub" }, "average of " + tasks.length + " linked task" + (tasks.length === 1 ? "" : "s") + "' accomplishment %"));
+        } else {
+          var total = tasks.reduce(function (s, t) { return s + countDoneEntries(state, t.id); }, 0);
+          readoutBox.appendChild(h("div", { class: "goal-linked-sub" }, total + " / " + g.countTarget + " done entries counted"));
+        }
+      }
+      refreshBadge();
+    }
+
+    // Structure rebuild (mode switch / horizon change / gaining-losing children).
+    function rebuildProgress() {
+      progressWrap.innerHTML = "";
+      var g = readGoal();
+
+      if (g.horizon === "short") {
+        var row = h("div", { class: "goal-src-row" });
+        [["", "Manual"], ["rate", "Rate-based"], ["count", "Count-based"]].forEach(function (m) {
+          row.appendChild(h("button", {
+            class: "mode-btn" + ((g.linkType || "") === m[0] ? " active" : ""),
+            onclick: function () { updateGoalField(state, goal.id, "linkType", m[0] || null); rebuildProgress(); }
+          }, m[1]));
+        });
+        progressWrap.appendChild(row);
+
+        if (!g.linkType) {
+          progressWrap.appendChild(buildSlider(g));
+          return;
+        }
+        if (g.linkType === "count") {
+          progressWrap.appendChild(h("div", { class: "goal-field-label" }, "Target count"));
+          progressWrap.appendChild(h("input", {
+            type: "number", min: "1", step: "1", value: g.countTarget || "", placeholder: "e.g. 500",
+            oninput: function (e) {
+              var n = parseInt(e.target.value, 10);
+              updateGoalField(state, goal.id, "countTarget", (isNaN(n) || n <= 0) ? null : n);
+              fillReadout();
+            }
+          }));
+        }
+        progressWrap.appendChild(h("div", { class: "goal-field-label" }, "Linked tasks"));
+        progressWrap.appendChild(renderTaskLinkPicker((g.linkedTaskIds || []), function (taskId, on) {
+          var cur = (readGoal().linkedTaskIds || []).slice();
+          var i = cur.indexOf(taskId);
+          if (on && i === -1) cur.push(taskId);
+          else if (!on && i !== -1) cur.splice(i, 1);
+          updateGoalField(state, goal.id, "linkedTaskIds", cur);
+          fillReadout();
+        }));
+        progressWrap.appendChild(readoutBox);
+        fillReadout();
+        return;
+      }
+
+      // mid / long
+      var kids = childGoals(g);
+      if (kids.length) {
+        progressWrap.appendChild(readoutBox);
+        fillReadout();
+      } else {
+        progressWrap.appendChild(h("div", { class: "goal-linked-sub" }, "No child goals ladder up here yet — progress is manual."));
+        progressWrap.appendChild(buildSlider(g));
+      }
+    }
+    rebuildProgress();
+    refreshBadge();
+
+    var dialog = h("div", { class: "modal-dialog", style: "--hz-color:" + hz.color + ";" }, [
+      h("div", { class: "modal-head" }, [
+        h("div", { class: "modal-title" }, "Edit goal"),
+        h("button", { class: "icon-btn", title: "Done", onclick: close }, "✕")
+      ]),
+      h("div", { class: "modal-body" }, [].concat(
+        modalField("Name", nameInput),
+        modalField("Horizon", horizonSelect),
+        modalField("Deadline", deadlineRow),
+        parentNodes,
+        modalField("Progress", progressWrap)
+      )),
+      h("div", { class: "modal-actions spread" }, [
+        h("button", { class: "icon-btn", onclick: function () { closeModal(function () { archiveGoal(state, goal.id); editingGoalId = null; render(); }); } }, "Archive goal"),
+        h("button", { class: "modal-primary", onclick: close }, "Done")
+      ])
+    ]);
+
+    var overlay = modalOverlay(dialog, close);
+    setTimeout(function () { nameInput.focus(); }, 0);
+    return overlay;
+  }
+
+  render();
+})();
+</script>
